@@ -69,7 +69,63 @@
 
 ---
 
-## #003 LLMが固有名詞（キャラクター名）を創作する
+## #003 Chrome拡張のビルド: content.jsが読み込めない（ES モジュール形式の誤用）
+
+**日付:** 2026-04-08
+
+### 起きたこと
+
+- `pnpm build` 後に `dist/` を Chrome に読み込もうとすると以下のエラーが出た
+  ```
+  スクリプトの JavaScript「content.js」を読み込むことができませんでした。
+  マニフェストを読み込めませんでした。
+  ```
+
+### 原因（2点）
+
+**原因1: Content Script を ES モジュール形式でビルドしていた**
+
+Vite の `format: 'es'` でビルドすると、Rollup は共通モジュールをチャンクファイルに分割し、`content.js` の先頭に以下のような文を出力する:
+
+```js
+import { buildKeywordSet } from './chunk-abc123.js';
+```
+
+**Chrome の `content_scripts` は ES モジュールの `import` 文を解釈できない**（Service Worker は可能だが Content Script は不可）。これが直接のエラー原因。
+
+**原因2: ポップアップビルドがスクリプトの成果物を上書き・削除していた**
+
+ビルドスクリプトが `build:scripts → build:popup` の順で実行されており、`build:popup` 側の Vite config に `emptyOutDir: true` が設定されていた。そのため `build:popup` が `dist/` を空にしてから実行され、直前の `content.js` と `background.js` が消えていた。
+
+### 解決策
+
+**原因1への対応: `format: 'iife'` に変更**
+
+IIFE（即時実行関数）形式でビルドすると、全ての依存が1つのファイルにインライン化され、`import` 文が出力されない。`vite.content.config.ts` と `vite.background.config.ts` を分離し、それぞれ `lib.formats: ['iife']` を指定。
+
+```ts
+// vite.content.config.ts
+build: {
+  lib: {
+    entry: resolve(__dirname, 'src/content/index.ts'),
+    formats: ['iife'],
+    name: 'SpoilerShieldContent',
+    fileName: () => 'content.js',
+  },
+}
+```
+
+**原因2への対応: ビルド順を逆に変更**
+
+`build` スクリプトを `build:popup → build:content → build:background` の順に変更。`emptyOutDir: true` は popup ビルド（先頭）のみに適用され、以降のスクリプトビルドは `emptyOutDir: false` のまま実行される。
+
+### 教訓
+
+- **Chrome Extension の Content Script は `format: 'iife'` でビルドする**。`format: 'es'` は Service Worker のみで使用可
+- 複数の Vite config を組み合わせる場合は `emptyOutDir` の適用タイミングに注意する
+- 1つの config で複数エントリを `iife` ビルドすることは Rollup の制約上できないため、Content Script と Service Worker は config ファイルを分けて管理する
+
+--- LLMが固有名詞（キャラクター名）を創作する
 
 **日付:** 2026-04-08
 

@@ -3,10 +3,11 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "build": "pnpm run build:scripts && pnpm run build:popup",
-    "build:scripts": "vite build --config vite.scripts.config.ts",
+    "build": "pnpm run build:popup && pnpm run build:content && pnpm run build:background",
     "build:popup": "vite build",
-    "dev": "vite build --watch --config vite.scripts.config.ts",
+    "build:content": "vite build --config vite.content.config.ts",
+    "build:background": "vite build --config vite.background.config.ts",
+    "dev": "vite build --watch --config vite.content.config.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
