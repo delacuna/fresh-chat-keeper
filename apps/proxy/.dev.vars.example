@@ -1,0 +1,5 @@
+# ローカル開発用の環境変数
+# このファイルを .dev.vars にコピーして実際の値を設定してください
+# .dev.vars は .gitignore に追加済みのため、コミットされません
+
+ANTHROPIC_API_KEY=sk-ant-xxxxxxxxxxxx

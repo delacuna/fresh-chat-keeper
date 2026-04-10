@@ -1,0 +1,288 @@
+/**
+ * SpoilerShield Proxy — Cloudflare Workers
+ *
+ * 役割:
+ * - Chrome Extension から受け取ったチャットメッセージを Anthropic API に転送してネタバレ判定
+ * - APIキーをクライアントに露出させずに安全に管理
+ * - 匿名トークン検証 + IPベースのレート制限（30req/min）
+ *
+ * エンドポイント:
+ *   POST /api/judge — Stage 2 LLM 判定
+ */
+
+export interface Env {
+  ANTHROPIC_API_KEY: string;
+  RATE_LIMIT_KV: KVNamespace;
+}
+
+// ─── 型定義（packages/shared の JudgeRequest / JudgeResponse と互換） ─────────
+
+type SpoilerCategory = 'direct_spoiler' | 'foreshadowing_hint' | 'gameplay_hint' | 'safe';
+type FilterVerdict = 'block' | 'allow' | 'uncertain';
+type FilterMode = 'strict' | 'standard' | 'lenient';
+
+interface UserProgress {
+  gameId: string;
+  progressModel: 'chapter' | 'event';
+  currentChapterId?: string;
+  completedEventIds?: string[];
+}
+
+interface JudgeRequest {
+  messages: Array<{ id: string; text: string }>;
+  gameId: string;
+  progress: UserProgress;
+  /** フィルタモード（省略時は 'standard'） */
+  filterMode?: FilterMode;
+}
+
+interface FilterResult {
+  messageId: string;
+  verdict: FilterVerdict;
+  spoilerCategory?: SpoilerCategory;
+  confidence?: number;
+  reason?: string;
+  stage: 2;
+}
+
+interface JudgeResponse {
+  results: FilterResult[];
+}
+
+// ─── レート制限設定 ───────────────────────────────────────────────────────────
+
+const RATE_LIMIT_MAX = 30;
+const RATE_LIMIT_WINDOW_SECONDS = 60;
+
+// ─── CORS ────────────────────────────────────────────────────────────────────
+
+const CORS_HEADERS: HeadersInit = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, x-spoilershield-token',
+};
+
+// ─── エントリポイント ─────────────────────────────────────────────────────────
+
+export default {
+  async fetch(request: Request, env: Env): Promise<Response> {
+    if (request.method === 'OPTIONS') {
+      return new Response(null, { status: 204, headers: CORS_HEADERS });
+    }
+
+    const url = new URL(request.url);
+
+    if (url.pathname === '/api/judge' && request.method === 'POST') {
+      return handleJudge(request, env);
+    }
+
+    return jsonError('Not Found', 404);
+  },
+};
+
+// ─── /api/judge ──────────────────────────────────────────────────────────────
+
+async function handleJudge(request: Request, env: Env): Promise<Response> {
+  // 匿名トークン検証（存在チェックのみ、将来的に署名検証を追加）
+  const token = request.headers.get('x-spoilershield-token');
+  if (!token) {
+    return jsonError('Missing x-spoilershield-token header', 401);
+  }
+
+  // レート制限
+  const ip = request.headers.get('CF-Connecting-IP') ?? 'unknown';
+  const allowed = await checkRateLimit(ip, env.RATE_LIMIT_KV);
+  if (!allowed) {
+    return jsonError('Rate limit exceeded. Max 30 requests per minute.', 429);
+  }
+
+  // リクエストボディのパース
+  let body: JudgeRequest;
+  try {
+    body = await request.json() as JudgeRequest;
+  } catch {
+    return jsonError('Invalid JSON body', 400);
+  }
+
+  if (!Array.isArray(body.messages) || body.messages.length === 0) {
+    return jsonError('messages must be a non-empty array', 400);
+  }
+  if (!body.gameId) {
+    return jsonError('gameId is required', 400);
+  }
+  if (!body.progress) {
+    return jsonError('progress is required', 400);
+  }
+
+  const filterMode: FilterMode = body.filterMode ?? 'standard';
+
+  // 各メッセージを並列で LLM 判定（最大同時5件）
+  const chunks = chunkArray(body.messages, 5);
+  const results: FilterResult[] = [];
+  for (const chunk of chunks) {
+    const chunkResults = await Promise.all(
+      chunk.map((msg) => judgeMessage(msg, body.gameId, body.progress, filterMode, env.ANTHROPIC_API_KEY)),
+    );
+    results.push(...chunkResults);
+  }
+
+  const response: JudgeResponse = { results };
+  return jsonOk(response);
+}
+
+// ─── レート制限 ───────────────────────────────────────────────────────────────
+
+async function checkRateLimit(ip: string, kv: KVNamespace): Promise<boolean> {
+  const windowKey = Math.floor(Date.now() / (RATE_LIMIT_WINDOW_SECONDS * 1000));
+  const key = `rl:${ip}:${windowKey}`;
+
+  const current = await kv.get(key);
+  const count = current !== null ? parseInt(current, 10) : 0;
+
+  if (count >= RATE_LIMIT_MAX) {
+    return false;
+  }
+
+  await kv.put(key, String(count + 1), { expirationTtl: RATE_LIMIT_WINDOW_SECONDS * 2 });
+  return true;
+}
+
+// ─── LLM 判定 ─────────────────────────────────────────────────────────────────
+
+async function judgeMessage(
+  message: { id: string; text: string },
+  gameId: string,
+  progress: UserProgress,
+  filterMode: FilterMode,
+  apiKey: string,
+): Promise<FilterResult> {
+  const progressDescription = formatProgress(progress);
+
+  const prompt = `あなたはゲームのライブ配信チャットのネタバレ判定AIです。
+ゲーム: ${gameId}
+現在の進行状況: ${progressDescription}
+以下のチャットメッセージを判定してください。
+
+メッセージ: "${message.text}"
+
+判定基準（spoiler_category）:
+
+"direct_spoiler" — 明示的なネタバレ（重度）
+  現在の進行状況より先のストーリー展開、キャラクターの生死、真相、結末などを直接的に述べている。
+  例: 「○○は実は裏切り者だよ」「ラスボスは○○」
+
+"foreshadowing_hint" — 伏線の指摘・匂わせ（中度）
+  先の展開を知っている人が、初見を装いつつ特定の場面・台詞・キャラクターに注意を向けさせるコメント。
+  例: 「ここ覚えておいて」「今の会話重要だよ」「この人怪しいな...（意味深）」
+
+"gameplay_hint" — 攻略ヒント（軽度）
+  次に何をすべきか、どこに行くべきかなどの指示。ストーリーには触れないが自力探索を損なう。
+  例: 「左の道に行った方がいいよ」「そのボスは炎属性が弱点」
+
+"safe" — 安全
+  既に通過した内容への言及、ゲームと無関係な会話、純粋な感想、配信者への応援。
+
+JSON形式のみで回答（余分なテキストを含めないこと）:
+{
+  "spoiler_category": "direct_spoiler" | "foreshadowing_hint" | "gameplay_hint" | "safe",
+  "confidence": 0.0-1.0,
+  "reason": "判定理由を簡潔に"
+}`;
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 256,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[SpoilerShield] Anthropic API error ${response.status}: ${errorText}`);
+      return { messageId: message.id, verdict: 'uncertain', stage: 2 };
+    }
+
+    const data = await response.json() as { content: Array<{ type: string; text: string }> };
+    const text = data.content[0]?.text ?? '';
+
+    // ```json ... ``` のような余分な記法にも対応
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      console.error('[SpoilerShield] Failed to extract JSON from LLM response:', text);
+      return { messageId: message.id, verdict: 'uncertain', stage: 2 };
+    }
+
+    const judgment = JSON.parse(jsonMatch[0]) as {
+      spoiler_category: SpoilerCategory;
+      confidence: number;
+      reason: string;
+    };
+
+    return {
+      messageId: message.id,
+      verdict: categoryToVerdict(judgment.spoiler_category, filterMode),
+      spoilerCategory: judgment.spoiler_category,
+      confidence: judgment.confidence,
+      reason: judgment.reason,
+      stage: 2,
+    };
+  } catch (err) {
+    console.error('[SpoilerShield] judgeMessage error:', err);
+    return { messageId: message.id, verdict: 'uncertain', stage: 2 };
+  }
+}
+
+// ─── ヘルパー ─────────────────────────────────────────────────────────────────
+
+function formatProgress(progress: UserProgress): string {
+  if (progress.progressModel === 'chapter' && progress.currentChapterId) {
+    return `チャプター「${progress.currentChapterId}」まで通過済み`;
+  }
+  if (progress.progressModel === 'event' && progress.completedEventIds?.length) {
+    return `通過済みイベント: ${progress.completedEventIds.join(', ')}`;
+  }
+  return '未設定（ゲーム開始前として扱う）';
+}
+
+function categoryToVerdict(category: SpoilerCategory, filterMode: FilterMode): FilterVerdict {
+  switch (category) {
+    case 'direct_spoiler':
+      return 'block';
+    case 'foreshadowing_hint':
+      return filterMode === 'lenient' ? 'allow' : 'block';
+    case 'gameplay_hint':
+      return filterMode === 'strict' ? 'block' : 'allow';
+    case 'safe':
+      return 'allow';
+  }
+}
+
+function chunkArray<T>(arr: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) {
+    chunks.push(arr.slice(i, i + size));
+  }
+  return chunks;
+}
+
+function jsonOk(data: unknown): Response {
+  return new Response(JSON.stringify(data), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
+  });
+}
+
+function jsonError(message: string, status: number): Response {
+  return new Response(JSON.stringify({ error: message }), {
+    status,
+    headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
+  });
+}

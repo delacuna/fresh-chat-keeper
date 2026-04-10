@@ -1,0 +1,11 @@
+name = "spoilershield-proxy"
+main = "src/index.ts"
+compatibility_date = "2024-07-25"
+
+# ANTHROPIC_API_KEY は wrangler secret で設定する（本番環境）
+# ローカル開発時は .dev.vars ファイルに記述する（.gitignore 済み）
+
+[[kv_namespaces]]
+binding = "RATE_LIMIT_KV"
+# 本番 deploy 前に `wrangler kv namespace create RATE_LIMIT_KV` で取得した ID を設定する
+id = "00000000000000000000000000000000"
