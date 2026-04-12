@@ -24,6 +24,14 @@ export interface KBChapter {
   description: string;
 }
 
+/** イベントベース進行管理モデル用のイベント定義 */
+export interface KBEvent {
+  id: string;
+  order: number;
+  title: string;
+  description?: string;
+}
+
 export interface KBSpoilerEntity {
   id: string;
   name: string;
@@ -42,7 +50,10 @@ export interface KBGame {
   title: string;
   title_aliases: string[];
   progress_type: ProgressType;
+  /** チャプターベース進行管理モデル用 */
   chapters: KBChapter[];
+  /** イベントベース進行管理モデル用（Undertale等） */
+  events?: KBEvent[];
   /** 各チャプターに紐づくネタバレエンティティ */
   spoiler_entities: KBSpoilerEntity[];
   /** 話をまたぐ伏線・作品全体に関わるネタバレ（最終章クリア後に解禁） */

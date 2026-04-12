@@ -149,3 +149,23 @@ export function matchesKeyword(
 
   return null;
 }
+
+/**
+ * Stage 2 候補判定。
+ * Stage 1 でフィルタされなかったコメントのうち、ゲームキーワードに部分マッチしたものを返す。
+ * Stage 1 はキーワード + ネタバレ動詞 の組み合わせが必要だが、ここではキーワード単体でヒットさせる。
+ *
+ * 前提: Stage 1 が null を返した後にのみ呼び出すこと。
+ * （ネタバレ単語・description フレーズはすでに Stage 1 で処理済み）
+ *
+ * @returns マッチしたキーワード、またはマッチなしの場合は null
+ */
+export function matchesKeywordForStage2(text: string, keywords: Set<string>): string | null {
+  const lower = text.toLowerCase();
+  for (const kw of keywords) {
+    if (lower.includes(kw.toLowerCase())) {
+      return kw;
+    }
+  }
+  return null;
+}

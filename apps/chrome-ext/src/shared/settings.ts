@@ -22,6 +22,8 @@ export interface Settings {
   progressByGame: Record<string, GameProgress>;
   filterMode: FilterMode;
   displayMode: DisplayMode;
+  /** Stage 2 プロキシの URL（デフォルト: http://localhost:8787） */
+  proxyUrl: string;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -30,10 +32,17 @@ export const DEFAULT_SETTINGS: Settings = {
   progressByGame: {},
   filterMode: 'standard',
   displayMode: 'placeholder',
+  proxyUrl: 'http://localhost:8787',
 };
 
 /** メイン設定のストレージキー。書き込みはポップアップのみ行う。 */
 export const STORAGE_KEY = 'spoilershield_settings';
+
+/**
+ * 匿名トークンのストレージキー。
+ * 初回起動時に UUID を生成して保存し、以降は同じ値を使い回す。
+ */
+export const ANON_TOKEN_KEY = 'spoilershield_anon_token';
 
 /**
  * フィルタカウントの専用ストレージキー。
@@ -68,4 +77,19 @@ export async function loadSettings(): Promise<Settings> {
 /** chrome.storage.local に設定を保存する */
 export async function saveSettings(settings: Settings): Promise<void> {
   await chrome.storage.local.set({ [STORAGE_KEY]: settings });
+}
+
+/**
+ * 匿名トークンを取得する。まだ存在しない場合は UUID を生成して保存する。
+ * リクエストヘッダー x-spoilershield-token に使用する。
+ */
+export async function getOrCreateAnonToken(): Promise<string> {
+  const result = await chrome.storage.local.get(ANON_TOKEN_KEY);
+  const existing = result[ANON_TOKEN_KEY] as string | undefined;
+  if (existing) return existing;
+
+  const token = crypto.randomUUID();
+  await chrome.storage.local.set({ [ANON_TOKEN_KEY]: token });
+  console.log('[SpoilerShield] 匿名トークンを生成しました:', token.slice(0, 8) + '...');
+  return token;
 }

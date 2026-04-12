@@ -5,16 +5,29 @@
  * - チャットリプレイは iframe 内にある（all_frames: true で対応済み）
  * - #items 要素は遅延初期化されるため MutationObserver で出現を検知する
  * - setTimeout ポーリングは使用しない
+ *
+ * フィルタ 2 段構成:
+ * - Stage 1: キーワードマッチ（即時、ブラウザ内完結）
+ * - Stage 2: プロキシ経由 LLM 判定（非同期、判定中は通常表示を維持）
  */
 
-import { buildKeywordSet, buildDescriptionPhraseSet, matchesKeyword } from './filter.js';
+import { buildKeywordSet, buildDescriptionPhraseSet, matchesKeyword, matchesKeywordForStage2 } from './filter.js';
 import { filterMessageElement, restoreMessageElement, switchDisplayMode } from './chat-dom.js';
 import {
   loadSettings,
   STORAGE_KEY,
   FILTER_COUNT_KEY,
+  getOrCreateAnonToken,
   type Settings,
 } from '../shared/settings.js';
+import {
+  initStage2Cache,
+  getCachedVerdict,
+  buildStage2CacheKey,
+  sendStage2Batch,
+  type Stage2Candidate,
+  type JudgeCacheEntry,
+} from './stage2.js';
 
 /** YouTube チャットリプレイのメッセージコンテナ */
 const ITEMS_SELECTOR = '#items';
@@ -27,6 +40,8 @@ const FILTERED_SELECTOR = '[data-spoilershield-filtered]';
 
 /** chat-dom.ts と同じ属性名（DOM チェック用） */
 const ATTR_FILTERED = 'data-spoilershield-filtered';
+
+// ─── モジュールスコープ状態 ───────────────────────────────────────────────────
 
 let currentSettings: Settings | null = null;
 let currentKeywords: Set<string> = new Set();
@@ -50,8 +65,29 @@ let isUpdatingDisplayMode = false;
  */
 const revealedTexts = new Set<string>();
 
+// ─── Stage 2 状態 ─────────────────────────────────────────────────────────────
+
+/** Stage 2 判定待ちキュー */
+let stage2Queue: Stage2Candidate[] = [];
+
+/** Stage 2 判定を実行中かどうか（再入防止） */
+let isDraining = false;
+
+/** キュー蓄積用デバウンスタイマー */
+let drainDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** 起動時に取得した匿名トークン */
+let anonToken = '';
+
+// ─── エントリポイント ─────────────────────────────────────────────────────────
+
 export function startArchiveMode(): void {
   console.log('[SpoilerShield] アーカイブモードで起動しました');
+
+  // Stage 2 キャッシュの読み込みとトークン取得を並行して初期化
+  Promise.all([initStage2Cache(), getOrCreateAnonToken()]).then(([, token]) => {
+    anonToken = token;
+  });
 
   loadSettings().then((settings) => {
     currentSettings = settings;
@@ -86,6 +122,8 @@ export function startArchiveMode(): void {
         });
         isUpdatingDisplayMode = false;
       } else {
+        // 設定変更: Stage 2 キューをクリアして再処理
+        clearStage2Queue();
         reprocessAll(itemsContainerRef);
       }
     });
@@ -96,11 +134,15 @@ export function startArchiveMode(): void {
   });
 }
 
+// ─── 設定・キーワード構築 ─────────────────────────────────────────────────────
+
 function buildKeywordsFromSettings(settings: Settings): Set<string> {
   const progress = settings.progressByGame[settings.gameId];
   currentDescriptionPhrases = buildDescriptionPhraseSet(settings.gameId);
   return buildKeywordSet(settings.gameId, settings.filterMode, progress);
 }
+
+// ─── MutationObserver 管理 ────────────────────────────────────────────────────
 
 function pauseObserver(): void {
   itemsObserver?.disconnect();
@@ -156,7 +198,7 @@ function observeItems(itemsContainer: Element): void {
     const hasRemovals = mutations.some((m) => m.removedNodes.length > 0);
     if (hasRemovals) {
       revealedTexts.clear();
-
+      clearStage2Queue();
     }
 
     for (const mutation of mutations) {
@@ -195,18 +237,18 @@ function reprocessAll(itemsContainer: Element): void {
   isUpdatingDisplayMode = false;
 }
 
+// ─── メッセージ処理 ────────────────────────────────────────────────────────────
+
 function processMessage(el: Element): void {
   if (!currentSettings?.enabled) return;
 
   // DOM 再利用ケース: YouTubeが要素を使い回した場合、古い属性が残っている可能性がある。
   // その場合は属性を一掃して最初から処理する。
   if (el.hasAttribute(ATTR_FILTERED)) {
-    // revealed 状態かつ revealedTexts に該当テキストがない → シーク後の再利用
     const isStale =
       el.getAttribute(ATTR_FILTERED) === 'revealed' && !revealedTexts.has(el.textContent?.trim() ?? '');
     const isTrueFiltered = el.getAttribute(ATTR_FILTERED) === 'true';
-    if (!isStale && isTrueFiltered) return; // 正当なフィルタ済みはスキップ
-    // それ以外は古い属性をクリアして再処理
+    if (!isStale && isTrueFiltered) return;
     el.removeAttribute(ATTR_FILTERED);
     el.removeAttribute('data-spoilershield-original');
     el.removeAttribute('data-spoilershield-matched-keyword');
@@ -218,26 +260,136 @@ function processMessage(el: Element): void {
   const text = el.textContent?.trim() ?? '';
   if (!text) return;
 
-  // ユーザーが展開したテキストは YouTube が DOM を差し替えても再フィルタしない
   if (revealedTexts.has(text)) return;
 
+  // ── Stage 1: 即時判定 ──────────────────────────────────────────────────────
   const matchResult = matchesKeyword(text, currentKeywords, currentDescriptionPhrases);
 
   if (matchResult !== null) {
     const matchInfo = matchResult.keyword ?? matchResult.phrase ?? matchResult.reason;
-    console.log(`[SpoilerShield] フィルタ: "${text}" (${matchInfo})`);
-    filterMessageElement(
-      el,
-      currentSettings.displayMode,
-      matchResult.keyword,
-      matchResult.verb ?? matchResult.phrase,
-      () => { revealedTexts.add(text); }, // ユーザーが展開したら記録
-    );
-    // filterCount は専用キーに書き込む（STORAGE_KEY への書き込みと競合させない）
-    chrome.storage.local.get(FILTER_COUNT_KEY, (result) => {
-      const prev = (result[FILTER_COUNT_KEY] as number | undefined) ?? 0;
-      const next = prev + 1;
-      chrome.storage.local.set({ [FILTER_COUNT_KEY]: next });
-    });
+    console.log(`[SpoilerShield] Stage 1結果: ${text.slice(0, 20)} → フィルタ (${matchInfo})`);
+    applyFilter(el, text, matchResult.keyword, matchResult.verb ?? matchResult.phrase);
+    return;
   }
+
+  // ── Stage 2: キーワード単体マッチ → プロキシへ委託 ──────────────────────────
+  const stage2keyword = matchesKeywordForStage2(text, currentKeywords);
+  if (!stage2keyword) return;
+  console.log(`[SpoilerShield] Stage 1結果: ${text.slice(0, 20)} → Stage2候補 (keyword: ${stage2keyword})`);
+
+  const progress = currentSettings.progressByGame[currentSettings.gameId];
+  const cacheKey = buildStage2CacheKey(currentSettings.gameId, progress, text);
+
+  // キャッシュ済みなら即時適用
+  const cached = getCachedVerdict(cacheKey);
+  if (cached !== null) {
+    applyStage2Verdict({ text, el: new WeakRef(el), cacheKey, matchedKeyword: stage2keyword }, cached);
+    return;
+  }
+
+  // 未判定: キューに追加して後送（判定中は通常表示のまま）
+  stage2Queue.push({ text, el: new WeakRef(el), cacheKey, matchedKeyword: stage2keyword });
+  scheduleDrain();
+}
+
+// ─── Stage 2 キュー管理 ────────────────────────────────────────────────────────
+
+function clearStage2Queue(): void {
+  stage2Queue = [];
+}
+
+/**
+ * 新しい候補が追加されたら 200ms のデバウンス後にドレイン開始。
+ * 連続する MutationObserver コールバックをまとめてバッチ化する。
+ */
+function scheduleDrain(): void {
+  if (drainDebounceTimer !== null) return;
+  drainDebounceTimer = setTimeout(() => {
+    drainDebounceTimer = null;
+    drainStage2Queue();
+  }, 200);
+}
+
+/**
+ * Stage 2 キューを 5 件ずつプロキシに送信する。
+ * バッチ間は 1 秒待機してレート制限に配慮する。
+ */
+async function drainStage2Queue(): Promise<void> {
+  if (isDraining || !currentSettings?.enabled || !anonToken) return;
+  if (stage2Queue.length === 0) return;
+
+  isDraining = true;
+  try {
+    while (stage2Queue.length > 0) {
+      // enabled が途中でオフになったら中断
+      if (!currentSettings?.enabled) break;
+
+      const batch = stage2Queue.splice(0, 5);
+      console.log(`[SpoilerShield] Stage 2送信: ${batch.length}件`);
+      await sendStage2Batch(batch, currentSettings, anonToken, applyStage2Verdict);
+
+      if (stage2Queue.length > 0) {
+        await sleep(1000);
+      }
+    }
+  } finally {
+    isDraining = false;
+    // ドレイン中に追加されたアイテムがあれば再スケジュール
+    if (stage2Queue.length > 0) {
+      scheduleDrain();
+    }
+  }
+}
+
+/**
+ * Stage 2 判定結果を DOM に適用する。
+ * - 'block' または 'uncertain' → フィルタ（安全側に倒す）
+ * - 'allow' → 何もしない
+ */
+function applyStage2Verdict(candidate: Stage2Candidate, entry: JudgeCacheEntry): void {
+  if (entry.verdict === 'allow') return;
+
+  const el = candidate.el.deref();
+  if (!el) return; // 要素が DOM から消えた
+
+  if (!currentSettings?.enabled) return;
+
+  // 要素がすでにフィルタ済み（Stage 1 が後から適用された等）
+  if (el.hasAttribute(ATTR_FILTERED)) return;
+
+  // YouTube が DOM を差し替えてテキストが変わっていたらスキップ
+  if (el.textContent?.trim() !== candidate.text) return;
+
+  // ユーザーが展開済みのテキストはスキップ
+  if (revealedTexts.has(candidate.text)) return;
+
+  console.log(`[SpoilerShield] Stage 2 フィルタ: "${candidate.text}" (${entry.spoilerCategory ?? entry.verdict})`);
+  applyFilter(el, candidate.text, candidate.matchedKeyword, undefined);
+}
+
+/** フィルタを適用して filterCount をインクリメントする共通処理 */
+function applyFilter(
+  el: Element,
+  text: string,
+  matchedKeyword?: string,
+  matchedContext?: string,
+): void {
+  if (!currentSettings) return;
+  filterMessageElement(
+    el,
+    currentSettings.displayMode,
+    matchedKeyword,
+    matchedContext,
+    () => { revealedTexts.add(text); },
+  );
+  chrome.storage.local.get(FILTER_COUNT_KEY, (result) => {
+    const prev = (result[FILTER_COUNT_KEY] as number | undefined) ?? 0;
+    chrome.storage.local.set({ [FILTER_COUNT_KEY]: prev + 1 });
+  });
+}
+
+// ─── ユーティリティ ────────────────────────────────────────────────────────────
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
