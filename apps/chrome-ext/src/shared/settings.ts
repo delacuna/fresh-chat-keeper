@@ -3,6 +3,8 @@
  * ポップアップ / Content Script の両方から参照する
  */
 
+import type { MisreportEntry } from '@spoilershield/shared';
+
 export type FilterMode = 'strict' | 'standard' | 'lenient';
 export type DisplayMode = 'placeholder' | 'hidden';
 
@@ -52,6 +54,24 @@ export const FILTER_COUNT_KEY = 'spoilershield_filter_count';
 
 /** Stage 2 月間利用量のストレージキー */
 export const STAGE2_USAGE_KEY = 'spoilershield_stage2_usage';
+
+/**
+ * 誤判定報告のストレージキー。最大 MISREPORT_MAX_COUNT 件を保存し、古いものから上書きする。
+ * 将来のサーバー送信機能追加を想定してローカルに蓄積しておく。
+ */
+export const MISREPORT_KEY = 'spoilershield_misreports';
+const MISREPORT_MAX_COUNT = 100;
+
+/** 誤判定報告を chrome.storage に保存する。100件を超えた場合は最古のものを削除する。 */
+export async function saveMisreport(entry: MisreportEntry): Promise<void> {
+  const result = await chrome.storage.local.get(MISREPORT_KEY);
+  const entries = (result[MISREPORT_KEY] as MisreportEntry[] | undefined) ?? [];
+  entries.push(entry);
+  if (entries.length > MISREPORT_MAX_COUNT) {
+    entries.splice(0, entries.length - MISREPORT_MAX_COUNT);
+  }
+  await chrome.storage.local.set({ [MISREPORT_KEY]: entries });
+}
 
 /**
  * Stage 2 の月間メッセージ件数上限。超えた場合は Stage 1 のみで動作する。

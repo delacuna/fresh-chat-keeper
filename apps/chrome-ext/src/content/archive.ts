@@ -12,7 +12,7 @@
  */
 
 import { buildKeywordSet, buildDescriptionPhraseSet, matchesKeyword, matchesKeywordForStage2 } from './filter.js';
-import { filterMessageElement, restoreMessageElement, switchDisplayMode } from './chat-dom.js';
+import { filterMessageElement, restoreMessageElement, switchDisplayMode, ATTR_FALSE_POSITIVE } from './chat-dom.js';
 import {
   loadSettings,
   STORAGE_KEY,
@@ -21,8 +21,10 @@ import {
   getStage2Usage,
   incrementStage2Usage,
   STAGE2_MONTHLY_LIMIT,
+  saveMisreport,
   type Settings,
 } from '../shared/settings.js';
+import type { MisreportEntry } from '@spoilershield/shared';
 import {
   initStage2Cache,
   getCachedVerdict,
@@ -249,11 +251,17 @@ function reprocessAll(itemsContainer: Element): void {
 function processMessage(el: Element): void {
   if (!currentSettings?.enabled) return;
 
+  // 誤判定報告済みの要素は再フィルタしない
+  if (el.getAttribute(ATTR_FALSE_POSITIVE) === 'true') return;
+
   // DOM 再利用ケース: YouTubeが要素を使い回した場合、古い属性が残っている可能性がある。
   // その場合は属性を一掃して最初から処理する。
+  // stale 判定: ATTR_ORIGINAL（元テキスト）が revealedTexts に含まれない revealed 状態 = 使い回し
   if (el.hasAttribute(ATTR_FILTERED)) {
+    const storedOriginal = el.getAttribute('data-spoilershield-original');
     const isStale =
-      el.getAttribute(ATTR_FILTERED) === 'revealed' && !revealedTexts.has(el.textContent?.trim() ?? '');
+      el.getAttribute(ATTR_FILTERED) === 'revealed' &&
+      !revealedTexts.has(storedOriginal ?? '');
     const isTrueFiltered = el.getAttribute(ATTR_FILTERED) === 'true';
     if (!isStale && isTrueFiltered) return;
     el.removeAttribute(ATTR_FILTERED);
@@ -373,6 +381,9 @@ function applyStage2Verdict(candidate: Stage2Candidate, entry: JudgeCacheEntry):
 
   if (!currentSettings.enabled) return;
 
+  // 誤判定報告済みの要素は再フィルタしない
+  if (el.getAttribute(ATTR_FALSE_POSITIVE) === 'true') return;
+
   // 要素がすでにフィルタ済み（Stage 1 が後から適用された等）
   if (el.hasAttribute(ATTR_FILTERED)) return;
 
@@ -383,7 +394,7 @@ function applyStage2Verdict(candidate: Stage2Candidate, entry: JudgeCacheEntry):
   if (revealedTexts.has(candidate.text)) return;
 
   console.log(`[SpoilerShield] Stage 2 フィルタ: "${candidate.text}" (${entry.spoilerCategory ?? 'uncertain'})`);
-  applyFilter(el, candidate.text, candidate.matchedKeyword, undefined);
+  applyFilter(el, candidate.text, candidate.matchedKeyword, undefined, entry.spoilerCategory);
 }
 
 /** フィルタを適用して filterCount をインクリメントする共通処理 */
@@ -392,14 +403,30 @@ function applyFilter(
   text: string,
   matchedKeyword?: string,
   matchedContext?: string,
+  spoilerCategory?: string | null,
 ): void {
   if (!currentSettings) return;
+  const settings = currentSettings;
+
+  const onMisreport = (): void => {
+    const entry: MisreportEntry = {
+      text,
+      spoilerCategory: spoilerCategory ?? null,
+      gameId: settings.gameId,
+      progress: settings.progressByGame[settings.gameId] ?? null,
+      filterMode: settings.filterMode,
+      timestamp: new Date().toISOString(),
+    };
+    saveMisreport(entry);
+  };
+
   filterMessageElement(
     el,
-    currentSettings.displayMode,
+    settings.displayMode,
     matchedKeyword,
     matchedContext,
     () => { revealedTexts.add(text); },
+    onMisreport,
   );
   chrome.storage.local.get(FILTER_COUNT_KEY, (result) => {
     const prev = (result[FILTER_COUNT_KEY] as number | undefined) ?? 0;

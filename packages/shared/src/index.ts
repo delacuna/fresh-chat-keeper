@@ -22,6 +22,8 @@ export type {
   Result,
 } from "./types/api.js";
 
+export type { MisreportEntry } from "./types/misreport.js";
+
 export { ok, err } from "./types/api.js";
 
 export { SPOILER_VERBS, matchesSpoilerVerb } from "./spoilerContext.js";
