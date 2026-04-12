@@ -97,8 +97,6 @@ export function switchDisplayMode(el: Element, nextMode: DisplayMode, onReveal?:
     if (original !== null) {
       el.textContent = original;
       el.removeAttribute(ATTR_ORIGINAL);
-      (el as HTMLElement).style.cursor = '';
-      (el as HTMLElement).style.opacity = '';
     }
     const row =
       el.closest('yt-live-chat-text-message-renderer') ??
@@ -146,8 +144,6 @@ export function restoreMessageElement(el: Element): void {
   if (original !== null) {
     el.textContent = original;
     el.removeAttribute(ATTR_ORIGINAL);
-    (el as HTMLElement).style.cursor = '';
-    (el as HTMLElement).style.opacity = '';
   }
 
   el.removeAttribute(ATTR_FILTERED);
@@ -155,16 +151,34 @@ export function restoreMessageElement(el: Element): void {
 
 // ─── 内部ヘルパー ─────────────────────────────────────────────────────────────
 
+const HIDE_BTN_STYLE = [
+  'margin-left:6px',
+  'font-size:0.75em',
+  'cursor:pointer',
+  'opacity:0.65',
+  'background:none',
+  'border:1px solid currentColor',
+  'border-radius:3px',
+  'color:inherit',
+  'padding:0 4px',
+  'vertical-align:middle',
+  'white-space:nowrap',
+  'line-height:1.4',
+].join(';');
+
 /**
  * プレースホルダー表示とトグル動作をセットアップする。
  *
  * 状態機械:
  *   filtered (ATTR_FILTERED='true')
- *     → クリック → revealed (ATTR_FILTERED='revealed')
- *     → クリック → filtered（繰り返し）
+ *     → プレースホルダー span クリック → revealed (ATTR_FILTERED='revealed')
+ *     → 「🔒 伏せる」ボタンクリック → filtered（繰り返し）
  *
  * 誤判定ボタンは初回 revealed 時に生成される。
  * 誤判定報告後は「✓ 報告済み」になり、ATTR_FALSE_POSITIVE を付与する。
+ *
+ * el 全体へのクリックリスナーは付けない（YouTubeのコンテキストメニューが発火するため）。
+ * プレースホルダー span と各ボタン要素にのみリスナーを付け、stopPropagation() で伝播を止める。
  */
 function setupPlaceholderToggle(
   el: Element,
@@ -179,49 +193,62 @@ function setupPlaceholderToggle(
 
   el.setAttribute(ATTR_ORIGINAL, originalText);
   el.textContent = '';
+
+  // プレースホルダー span: クリックで revealed に遷移
   const textSpan = document.createElement('span');
   textSpan.textContent = PLACEHOLDER;
+  (textSpan as HTMLElement).style.cursor = 'pointer';
+  (textSpan as HTMLElement).style.opacity = '0.55';
   el.appendChild(textSpan);
 
-  (el as HTMLElement).style.cursor = 'pointer';
-  (el as HTMLElement).style.opacity = '0.55';
+  // 「🔒 伏せる」ボタン: revealed 状態で表示し、クリックで filtered に戻す
+  const hideBtn = document.createElement('button');
+  hideBtn.style.cssText = HIDE_BTN_STYLE;
+  hideBtn.textContent = '🔒 伏せる';
+  hideBtn.style.display = 'none';
+  el.appendChild(hideBtn);
 
   // 誤判定ボタンとその状態（クロージャで保持）
-  let btn: HTMLButtonElement | null = null;
+  let misreportBtn: HTMLButtonElement | null = null;
   let reported = el.getAttribute(ATTR_FALSE_POSITIVE) === 'true';
 
-  el.addEventListener('click', (e: Event) => {
-    // 誤判定ボタン自身のクリックはトグルを発動しない
-    if ((e.target as Element).closest('[data-spoilershield-misreport]')) return;
+  // プレースホルダークリック: filtered → revealed
+  textSpan.addEventListener('click', (e: Event) => {
+    e.stopPropagation();
+    if (el.getAttribute(ATTR_FILTERED) !== 'true') return;
 
-    const state = el.getAttribute(ATTR_FILTERED);
+    textSpan.textContent = originalText;
+    (textSpan as HTMLElement).style.cursor = '';
+    (textSpan as HTMLElement).style.opacity = '';
+    hideBtn.style.display = '';
+    el.setAttribute(ATTR_FILTERED, 'revealed');
+    onReveal?.();
 
-    if (state === 'true') {
-      // filtered → revealed: 元テキストを表示し、誤判定ボタンを出現させる
-      textSpan.textContent = originalText;
-      el.setAttribute(ATTR_FILTERED, 'revealed');
-      (el as HTMLElement).style.opacity = '';
-
-      if (onMisreport) {
-        if (!btn) {
-          btn = createMisreportButton(reported, () => {
-            reported = true;
-            el.setAttribute(ATTR_FALSE_POSITIVE, 'true');
-            onMisreport();
-            onReveal?.();
-          });
-          el.appendChild(btn);
-        } else {
-          btn.style.display = '';
-        }
+    if (onMisreport) {
+      if (!misreportBtn) {
+        misreportBtn = createMisreportButton(reported, () => {
+          reported = true;
+          el.setAttribute(ATTR_FALSE_POSITIVE, 'true');
+          onMisreport();
+        });
+        el.appendChild(misreportBtn);
+      } else {
+        misreportBtn.style.display = '';
       }
-    } else if (state === 'revealed') {
-      // revealed → filtered: プレースホルダーに戻し、誤判定ボタンを隠す
-      textSpan.textContent = PLACEHOLDER;
-      el.setAttribute(ATTR_FILTERED, 'true');
-      (el as HTMLElement).style.opacity = '0.55';
-      if (btn) btn.style.display = 'none';
     }
+  }, { signal: ctrl.signal });
+
+  // 「🔒 伏せる」クリック: revealed → filtered
+  hideBtn.addEventListener('click', (e: Event) => {
+    e.stopPropagation();
+    if (el.getAttribute(ATTR_FILTERED) !== 'revealed') return;
+
+    textSpan.textContent = PLACEHOLDER;
+    (textSpan as HTMLElement).style.cursor = 'pointer';
+    (textSpan as HTMLElement).style.opacity = '0.55';
+    hideBtn.style.display = 'none';
+    if (misreportBtn) misreportBtn.style.display = 'none';
+    el.setAttribute(ATTR_FILTERED, 'true');
   }, { signal: ctrl.signal });
 }
 
