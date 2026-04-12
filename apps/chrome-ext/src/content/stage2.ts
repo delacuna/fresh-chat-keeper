@@ -6,15 +6,24 @@
  * - 判定結果は chrome.storage にキャッシュし、同じ動画の再視聴時はプロキシへの送信をスキップする
  */
 
-import type { Settings, GameProgress } from '../shared/settings.js';
+import type { Settings, GameProgress, FilterMode } from '../shared/settings.js';
 
 // ─── 型定義 ────────────────────────────────────────────────────────────────────
 
-export type Stage2Verdict = 'block' | 'allow' | 'uncertain';
+export type Stage2Verdict = 'block' | 'allow';
+
+/** proxy の LLM が返す spoiler_category 値 */
+export type LLMSpoilerCategory = 'direct_spoiler' | 'foreshadowing_hint' | 'gameplay_hint' | 'safe';
+
+const LLM_CATEGORY_SET = new Set<string>(['direct_spoiler', 'foreshadowing_hint', 'gameplay_hint', 'safe']);
 
 export interface JudgeCacheEntry {
-  verdict: Stage2Verdict;
-  spoilerCategory?: string;
+  /**
+   * LLM が判定したカテゴリ。
+   * null は LLM 判定失敗（API エラー・JSON パース失敗）を表す。
+   */
+  spoilerCategory: LLMSpoilerCategory | null;
+  confidence?: number;
 }
 
 /** Stage 2 判定待ちコメントの情報 */
@@ -30,6 +39,25 @@ export interface Stage2Candidate {
 }
 
 export type OnStage2Result = (candidate: Stage2Candidate, entry: JudgeCacheEntry) => void;
+
+/**
+ * キャッシュエントリと現在のフィルタモードから verdict を導出する。
+ * フィルタモードを変更しても proxy に再リクエストせずに正しい判定が得られる。
+ *
+ * - spoilerCategory が null（LLM 判定失敗）の場合: lenient → allow、それ以外 → block
+ */
+export function verdictFromCache(entry: JudgeCacheEntry, filterMode: FilterMode): Stage2Verdict {
+  const { spoilerCategory } = entry;
+  if (spoilerCategory === null) {
+    return filterMode === 'lenient' ? 'allow' : 'block';
+  }
+  switch (spoilerCategory) {
+    case 'direct_spoiler':      return 'block';
+    case 'foreshadowing_hint':  return filterMode === 'lenient' ? 'allow' : 'block';
+    case 'gameplay_hint':       return filterMode === 'strict'  ? 'block' : 'allow';
+    case 'safe':                return 'allow';
+  }
+}
 
 // ─── キャッシュ ────────────────────────────────────────────────────────────────
 
@@ -83,7 +111,7 @@ export function buildStage2CacheKey(
  *
  * - ネットワークエラー・プロキシ停止時はコールバックを呼ばずに終了する
  *   （Stage 1 を通過した候補なので、フィルタしない方が安全）
- * - verdict === 'uncertain' は呼び出し元が安全側（フィルタ）に倒す
+ * - LLM 判定失敗時の verdict は verdictFromCache が filterMode に応じて決定する
  */
 export async function sendStage2Batch(
   batch: Stage2Candidate[],
@@ -116,7 +144,7 @@ export async function sendStage2Batch(
     }
 
     const data = await res.json() as {
-      results: Array<{ messageId: string; verdict: string; spoilerCategory?: string }>;
+      results: Array<{ messageId: string; verdict: string; spoilerCategory?: string; confidence?: number }>;
     };
 
     for (const result of data.results) {
@@ -124,12 +152,18 @@ export async function sendStage2Batch(
       const candidate = batch[idx];
       if (!candidate) continue;
 
+      const spoilerCategory: LLMSpoilerCategory | null =
+        result.spoilerCategory != null && LLM_CATEGORY_SET.has(result.spoilerCategory)
+          ? (result.spoilerCategory as LLMSpoilerCategory)
+          : null;
+
       const entry: JudgeCacheEntry = {
-        verdict: result.verdict as Stage2Verdict,
-        spoilerCategory: result.spoilerCategory,
+        spoilerCategory,
+        confidence: result.confidence,
       };
 
-      console.log(`[SpoilerShield] Stage 2結果: ${candidate.text.slice(0, 20)} → ${result.verdict} ${result.spoilerCategory ?? ''}`);
+      const verdict = verdictFromCache(entry, settings.filterMode);
+      console.log(`[SpoilerShield] Stage 2結果: ${candidate.text.slice(0, 20)} → ${verdict} (${spoilerCategory ?? 'uncertain'})`);
       await saveJudgeCacheEntry(candidate.cacheKey, entry);
       onResult(candidate, entry);
     }

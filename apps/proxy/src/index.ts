@@ -207,7 +207,7 @@ JSON形式のみで回答（余分なテキストを含めないこと）:
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`[SpoilerShield] Anthropic API error ${response.status}: ${errorText}`);
-      return { messageId: message.id, verdict: 'uncertain', stage: 2 };
+      return { messageId: message.id, verdict: uncertainVerdict(filterMode), stage: 2 };
     }
 
     const data = await response.json() as { content: Array<{ type: string; text: string }> };
@@ -217,7 +217,7 @@ JSON形式のみで回答（余分なテキストを含めないこと）:
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       console.error('[SpoilerShield] Failed to extract JSON from LLM response:', text);
-      return { messageId: message.id, verdict: 'uncertain', stage: 2 };
+      return { messageId: message.id, verdict: uncertainVerdict(filterMode), stage: 2 };
     }
 
     const judgment = JSON.parse(jsonMatch[0]) as {
@@ -236,7 +236,7 @@ JSON形式のみで回答（余分なテキストを含めないこと）:
     };
   } catch (err) {
     console.error('[SpoilerShield] judgeMessage error:', err);
-    return { messageId: message.id, verdict: 'uncertain', stage: 2 };
+    return { messageId: message.id, verdict: uncertainVerdict(filterMode), stage: 2 };
   }
 }
 
@@ -250,6 +250,11 @@ function formatProgress(progress: UserProgress): string {
     return `通過済みイベント: ${progress.completedEventIds.join(', ')}`;
   }
   return '未設定（ゲーム開始前として扱う）';
+}
+
+/** LLM 判定失敗時の verdict をモードに応じて決定する。lenient では安全側（allow）に倒す。 */
+function uncertainVerdict(filterMode: FilterMode): FilterVerdict {
+  return filterMode === 'lenient' ? 'allow' : 'uncertain';
 }
 
 function categoryToVerdict(category: SpoilerCategory, filterMode: FilterMode): FilterVerdict {

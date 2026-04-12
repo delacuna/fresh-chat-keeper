@@ -25,6 +25,7 @@ import {
   getCachedVerdict,
   buildStage2CacheKey,
   sendStage2Batch,
+  verdictFromCache,
   type Stage2Candidate,
   type JudgeCacheEntry,
 } from './stage2.js';
@@ -347,12 +348,15 @@ async function drainStage2Queue(): Promise<void> {
  * - 'allow' → 何もしない
  */
 function applyStage2Verdict(candidate: Stage2Candidate, entry: JudgeCacheEntry): void {
-  if (entry.verdict === 'allow') return;
+  if (!currentSettings) return;
+
+  const verdict = verdictFromCache(entry, currentSettings.filterMode);
+  if (verdict === 'allow') return;
 
   const el = candidate.el.deref();
   if (!el) return; // 要素が DOM から消えた
 
-  if (!currentSettings?.enabled) return;
+  if (!currentSettings.enabled) return;
 
   // 要素がすでにフィルタ済み（Stage 1 が後から適用された等）
   if (el.hasAttribute(ATTR_FILTERED)) return;
@@ -363,7 +367,7 @@ function applyStage2Verdict(candidate: Stage2Candidate, entry: JudgeCacheEntry):
   // ユーザーが展開済みのテキストはスキップ
   if (revealedTexts.has(candidate.text)) return;
 
-  console.log(`[SpoilerShield] Stage 2 フィルタ: "${candidate.text}" (${entry.spoilerCategory ?? entry.verdict})`);
+  console.log(`[SpoilerShield] Stage 2 フィルタ: "${candidate.text}" (${entry.spoilerCategory ?? 'uncertain'})`);
   applyFilter(el, candidate.text, candidate.matchedKeyword, undefined);
 }
 
