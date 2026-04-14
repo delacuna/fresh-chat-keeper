@@ -8,4 +8,4 @@ compatibility_date = "2024-07-25"
 [[kv_namespaces]]
 binding = "RATE_LIMIT_KV"
 # 本番 deploy 前に `wrangler kv namespace create RATE_LIMIT_KV` で取得した ID を設定する
-id = "00000000000000000000000000000000"
+id = "a8c3d4a066474f16a089afdb8ff719c8"
