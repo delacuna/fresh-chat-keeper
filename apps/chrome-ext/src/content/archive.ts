@@ -47,6 +47,32 @@ const FILTERED_SELECTOR = '[data-spoilershield-filtered]';
 /** chat-dom.ts と同じ属性名（DOM チェック用） */
 const ATTR_FILTERED = 'data-spoilershield-filtered';
 
+// ─── コンテキスト有効性チェック ───────────────────────────────────────────────
+
+/**
+ * 拡張機能のコンテキストがまだ有効かどうかを確認する。
+ * 拡張がリロード・更新・無効化されると chrome.runtime.id が undefined になる。
+ * Content Script はページが残っている限り生き続けるため、このチェックが必要。
+ */
+function isContextValid(): boolean {
+  try {
+    return !!chrome.runtime?.id;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * コンテキスト無効を検知したときの終了処理。
+ * Observer を止め、Stage 2 キューをクリアしてこれ以上 Chrome API を呼ばないようにする。
+ */
+function shutdownOnInvalidContext(): void {
+  console.log('[SpoilerShield] 拡張コンテキストが無効になりました。監視を停止します。');
+  itemsObserver?.disconnect();
+  itemsObserver = null;
+  stage2Queue = [];
+}
+
 // ─── モジュールスコープ状態 ───────────────────────────────────────────────────
 
 let currentSettings: Settings | null = null;
@@ -250,6 +276,10 @@ function reprocessAll(itemsContainer: Element): void {
 // ─── メッセージ処理 ────────────────────────────────────────────────────────────
 
 function processMessage(el: Element): void {
+  if (!isContextValid()) {
+    shutdownOnInvalidContext();
+    return;
+  }
   if (!currentSettings?.enabled) return;
 
   // 誤判定報告済みの要素は再フィルタしない
@@ -346,6 +376,11 @@ async function drainStage2Queue(): Promise<void> {
   isDraining = true;
   try {
     while (stage2Queue.length > 0) {
+      // コンテキストが無効になったら中断（拡張リロード時等）
+      if (!isContextValid()) {
+        shutdownOnInvalidContext();
+        break;
+      }
       // enabled が途中でオフになったら中断
       if (!currentSettings?.enabled) break;
 
@@ -438,10 +473,15 @@ function applyFilter(
     () => { revealedTexts.add(text); },
     onMisreport,
   );
-  chrome.storage.local.get(FILTER_COUNT_KEY, (result) => {
-    const prev = (result[FILTER_COUNT_KEY] as number | undefined) ?? 0;
-    chrome.storage.local.set({ [FILTER_COUNT_KEY]: prev + 1 });
-  });
+  try {
+    chrome.storage.local.get(FILTER_COUNT_KEY, (result) => {
+      const prev = (result[FILTER_COUNT_KEY] as number | undefined) ?? 0;
+      chrome.storage.local.set({ [FILTER_COUNT_KEY]: prev + 1 });
+    });
+  } catch {
+    // processMessage のチェック直後にコンテキストが無効になった場合のレース条件ガード
+    shutdownOnInvalidContext();
+  }
 }
 
 // ─── ユーティリティ ────────────────────────────────────────────────────────────

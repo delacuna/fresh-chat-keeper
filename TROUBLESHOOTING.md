@@ -281,3 +281,80 @@ LLMの生成結果を鵜呑みにせず、**ゲームを実際にプレイした
 - `reprocessAll()` のような「全復元→全再フィルタ」パターンは視覚的なフラッシュを生む。表示属性だけ変えるケースには差分更新の専用関数を用意する
 
 ---
+
+## #007 Extension context invalidated（拡張リロード後のエラー）
+
+**日付:** 2026-04-14
+
+### 起きたこと
+
+- YouTube のアーカイブ動画を開いた状態で拡張機能をリロード（開発中の更新）
+- ページをリロードせず動画を再生し続けると以下のエラーがコンソールに出続ける
+
+  ```
+  Uncaught Error: Extension context invalidated.
+    content.js (applyFilter)
+    content.js (applyStage2Verdict)
+    content.js (processMessage)
+  ```
+
+- `chrome.storage.local.get(FILTER_COUNT_KEY, ...)` の呼び出し行がハイライトされていた
+
+### 原因
+
+Content Script はページが存在する限り生き続けるが、拡張がリロード・更新・無効化されるとその Content Script が持っていた「拡張へのコネクション（コンテキスト）」が切れる。コンテキストが切れた後に `chrome.storage` 等の Chrome Extension API を呼び出すと `Extension context invalidated` エラーが発生する。
+
+コンテキストが切れても `MutationObserver` は動き続けるため、YouTube にコメントが流れるたびに `processMessage` が呼ばれ、最終的に `applyFilter` の `chrome.storage.local.get` でエラーが発生し続ける。
+
+また Stage 2 の非同期バッチ処理（`drainStage2Queue`）は `await sleep(1000)` を挟むため、「拡張リロード → 1秒後にコールバック実行」というタイミングでもエラーが発生しやすい。
+
+開発中はリロードを繰り返すためこの状況が起きやすく、本番環境でも Chrome が拡張を自動更新した際に発生しうる。
+
+### 解決策
+
+**① `isContextValid()` ヘルパー関数を追加**
+
+`chrome.runtime.id` が参照できるかどうかでコンテキストの有効性を確認する。
+
+```typescript
+function isContextValid(): boolean {
+  try {
+    return !!chrome.runtime?.id;
+  } catch {
+    return false;
+  }
+}
+```
+
+**② コンテキスト無効時の終了処理 `shutdownOnInvalidContext()` を追加**
+
+Observer を disconnect してキューをクリアし、以降の Chrome API 呼び出しを完全に止める。
+
+```typescript
+function shutdownOnInvalidContext(): void {
+  itemsObserver?.disconnect();
+  itemsObserver = null;
+  stage2Queue = [];
+}
+```
+
+**③ `processMessage` の先頭でチェック**
+
+最も頻繁に呼ばれるエントリポイントに置くことで、無効なコンテキストでの処理が最初の呼び出しで止まる。
+
+**④ `drainStage2Queue` のループ内でもチェック**
+
+非同期処理の `await sleep(1000)` 後にもチェックすることで、バッチ処理中に拡張がリロードされた場合もキャッチできる。
+
+**⑤ `applyFilter` の `chrome.storage` 呼び出しを try/catch で囲む（安全ネット）**
+
+`processMessage` チェック直後にコンテキストが無効になるレース条件（③のチェックをすり抜けるケース）に対するフォールバック。
+
+### 教訓
+
+- Content Script は拡張のリロード後もページが閉じるまで生き続ける。`chrome.*` API を使う前にコンテキスト有効性を確認する設計にする
+- `chrome.runtime.id` が `undefined` になることが Chrome 公式の「コンテキスト無効」の判定方法
+- エラーを try/catch で握りつぶすだけでは MutationObserver が動き続けてエラーが出続ける。**検知したら Observer を止めるのがセット**
+- 開発中は気づきにくいが本番でも発生する（Chrome 自動更新時等）ため、公開前に対処が必要
+
+---
