@@ -14,11 +14,11 @@
  * - 進行状況未設定の場合は安全側に倒して全キーワードをブロック対象とする
  */
 
-import type { KBGame, GenreTemplate } from '@spoilershield/knowledge-base';
-import { getAllGenreTemplates } from '@spoilershield/knowledge-base';
+import type { KBGame, GenreTemplate } from '@fresh-live-chat/knowledge-base';
+import { getAllGenreTemplates } from '@fresh-live-chat/knowledge-base';
 import aceAttorney1 from '@kb-data/ace-attorney-1.json';
 import { getBlockedLevels, type FilterMode, type GameProgress, type CustomNGWord } from '../shared/settings.js';
-import { matchesSpoilerVerb, normalizeKana } from '@spoilershield/shared';
+import { matchesSpoilerVerb, normalizeKana } from '@fresh-live-chat/shared';
 
 const ALL_GAMES: KBGame[] = [aceAttorney1 as unknown as KBGame];
 

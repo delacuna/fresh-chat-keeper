@@ -12,7 +12,7 @@
  */
 
 import { buildKeywordSet, buildDescriptionPhraseSet, matchesKeyword, matchesKeywordForStage2, matchesCustomNGWord, buildActiveGenreTemplates, matchesGenreTemplate, matchesGenreKeywordForStage2, matchesGameplayHintForStage2 } from './filter.js';
-import type { GenreTemplate } from '@spoilershield/knowledge-base';
+import type { GenreTemplate } from '@fresh-live-chat/knowledge-base';
 import { filterMessageElement, restoreMessageElement, switchDisplayMode, ATTR_FALSE_POSITIVE } from './chat-dom.js';
 import {
   loadSettings,
@@ -25,7 +25,7 @@ import {
   saveMisreport,
   type Settings,
 } from '../shared/settings.js';
-import type { MisreportEntry } from '@spoilershield/shared';
+import type { MisreportEntry } from '@fresh-live-chat/shared';
 import {
   initStage2Cache,
   getCachedVerdict,
@@ -43,10 +43,10 @@ const ITEMS_SELECTOR = '#items';
 const MSG_TEXT_SELECTOR = '#message';
 
 /** フィルタ済みメッセージを検索するセレクタ（revealed も含む） */
-const FILTERED_SELECTOR = '[data-spoilershield-filtered]';
+const FILTERED_SELECTOR = '[data-flc-filtered]';
 
 /** chat-dom.ts と同じ属性名（DOM チェック用） */
-const ATTR_FILTERED = 'data-spoilershield-filtered';
+const ATTR_FILTERED = 'data-flc-filtered';
 
 // ─── コンテキスト有効性チェック ───────────────────────────────────────────────
 
@@ -68,7 +68,7 @@ function isContextValid(): boolean {
  * Observer を止め、Stage 2 キューをクリアしてこれ以上 Chrome API を呼ばないようにする。
  */
 function shutdownOnInvalidContext(): void {
-  console.log('[SpoilerShield] 拡張コンテキストが無効になりました。監視を停止します。');
+  console.log('[FreshLiveChat] 拡張コンテキストが無効になりました。監視を停止します。');
   itemsObserver?.disconnect();
   itemsObserver = null;
   stage2Queue = [];
@@ -119,7 +119,7 @@ let anonToken = '';
 // ─── エントリポイント ─────────────────────────────────────────────────────────
 
 export function startArchiveMode(mode: 'archive' | 'live' = 'archive'): void {
-  console.log(`[SpoilerShield] ${mode === 'live' ? 'ライブモード' : 'アーカイブモード'}で起動しました`);
+  console.log(`[FreshLiveChat] ${mode === 'live' ? 'ライブモード' : 'アーカイブモード'}で起動しました`);
 
   // 動画タイトルを取得（親フレームの document.title から "- YouTube" を除去）
   currentVideoTitle = getVideoTitle();
@@ -159,9 +159,9 @@ export function startArchiveMode(mode: 'archive' | 'live' = 'archive'): void {
       if (onlyDisplayModeChanged) {
         // displayMode のみ変更: 復元→再フィルタせず、表示方式だけ直接切り替える（フラッシュ防止）
         isUpdatingDisplayMode = true;
-        itemsContainerRef.querySelectorAll('[data-spoilershield-filtered="true"]').forEach((el) => {
+        itemsContainerRef.querySelectorAll('[data-flc-filtered="true"]').forEach((el) => {
           switchDisplayMode(el, next.displayMode, () => {
-            const text = el.getAttribute('data-spoilershield-original') ?? el.textContent?.trim() ?? '';
+            const text = el.getAttribute('data-flc-original') ?? el.textContent?.trim() ?? '';
             if (text) revealedTexts.add(text);
           });
         });
@@ -299,16 +299,16 @@ function processMessage(el: Element): void {
   // その場合は属性を一掃して最初から処理する。
   // stale 判定: ATTR_ORIGINAL（元テキスト）が revealedTexts に含まれない revealed 状態 = 使い回し
   if (el.hasAttribute(ATTR_FILTERED)) {
-    const storedOriginal = el.getAttribute('data-spoilershield-original');
+    const storedOriginal = el.getAttribute('data-flc-original');
     const isStale =
       el.getAttribute(ATTR_FILTERED) === 'revealed' &&
       !revealedTexts.has(storedOriginal ?? '');
     const isTrueFiltered = el.getAttribute(ATTR_FILTERED) === 'true';
     if (!isStale && isTrueFiltered) return;
     el.removeAttribute(ATTR_FILTERED);
-    el.removeAttribute('data-spoilershield-original');
-    el.removeAttribute('data-spoilershield-matched-keyword');
-    el.removeAttribute('data-spoilershield-matched-context');
+    el.removeAttribute('data-flc-original');
+    el.removeAttribute('data-flc-matched-keyword');
+    el.removeAttribute('data-flc-matched-context');
     (el as HTMLElement).style.cursor = '';
     (el as HTMLElement).style.opacity = '';
   }
@@ -432,7 +432,7 @@ async function drainStage2Queue(): Promise<void> {
       // 月間上限チェック: 上限に達していたら Stage 2 を停止し Stage 1 のみで継続
       const usage = await getStage2Usage();
       if (usage.messageCount >= STAGE2_MONTHLY_LIMIT) {
-        console.log(`[SpoilerShield] Stage 2月間上限(${STAGE2_MONTHLY_LIMIT}回)に達しました。Stage 1のみで動作を継続します。`);
+        console.log(`[FreshLiveChat] Stage 2月間上限(${STAGE2_MONTHLY_LIMIT}回)に達しました。Stage 1のみで動作を継続します。`);
         stage2Queue = [];
         break;
       }

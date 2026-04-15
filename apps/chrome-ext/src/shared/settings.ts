@@ -3,7 +3,7 @@
  * ポップアップ / Content Script の両方から参照する
  */
 
-import type { MisreportEntry } from '@spoilershield/shared';
+import type { MisreportEntry } from '@fresh-live-chat/shared';
 
 export type FilterMode = 'strict' | 'standard' | 'lenient';
 export type DisplayMode = 'placeholder' | 'hidden';
@@ -53,28 +53,28 @@ export const DEFAULT_SETTINGS: Settings = {
 };
 
 /** メイン設定のストレージキー。書き込みはポップアップのみ行う。 */
-export const STORAGE_KEY = 'spoilershield_settings';
+export const STORAGE_KEY = 'flc_settings';
 
 /**
  * 匿名トークンのストレージキー。
  * 初回起動時に UUID を生成して保存し、以降は同じ値を使い回す。
  */
-export const ANON_TOKEN_KEY = 'spoilershield_anon_token';
+export const ANON_TOKEN_KEY = 'flc_anon_token';
 
 /**
  * フィルタカウントの専用ストレージキー。
  * Content Script のみ書き込む。STORAGE_KEY との競合を防ぐために分離している。
  */
-export const FILTER_COUNT_KEY = 'spoilershield_filter_count';
+export const FILTER_COUNT_KEY = 'flc_filter_count';
 
 /** Stage 2 月間利用量のストレージキー */
-export const STAGE2_USAGE_KEY = 'spoilershield_stage2_usage';
+export const STAGE2_USAGE_KEY = 'flc_stage2_usage';
 
 /**
  * 誤判定報告のストレージキー。最大 MISREPORT_MAX_COUNT 件を保存し、古いものから上書きする。
  * 将来のサーバー送信機能追加を想定してローカルに蓄積しておく。
  */
-export const MISREPORT_KEY = 'spoilershield_misreports';
+export const MISREPORT_KEY = 'flc_misreports';
 const MISREPORT_MAX_COUNT = 100;
 
 /** 誤判定報告を chrome.storage に保存する。100件を超えた場合は最古のものを削除する。 */
@@ -175,7 +175,7 @@ export async function saveSettings(settings: Settings): Promise<void> {
 
 /**
  * 匿名トークンを取得する。まだ存在しない場合は UUID を生成して保存する。
- * リクエストヘッダー x-spoilershield-token に使用する。
+ * リクエストヘッダー x-flc-token に使用する。
  */
 export async function getOrCreateAnonToken(): Promise<string> {
   const result = await chrome.storage.local.get(ANON_TOKEN_KEY);
@@ -184,6 +184,6 @@ export async function getOrCreateAnonToken(): Promise<string> {
 
   const token = crypto.randomUUID();
   await chrome.storage.local.set({ [ANON_TOKEN_KEY]: token });
-  console.log('[SpoilerShield] 匿名トークンを生成しました:', token.slice(0, 8) + '...');
+  console.log('[FreshLiveChat] 匿名トークンを生成しました:', token.slice(0, 8) + '...');
   return token;
 }

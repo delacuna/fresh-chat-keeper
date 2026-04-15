@@ -10,11 +10,11 @@ AI-powered spoiler filter for YouTube game stream chats. Works on archives and l
 
 ## Full Description
 
-### SpoilerShield — Spoiler Filter for Game Stream Chats
+### Fresh Live Chat — Spoiler Filter for Game Stream Chats
 
-You're watching a game stream archive, fully immersed — then the chat flashes "the final boss is [character]" or "this is a scripted loss, don't bother." SpoilerShield stops that.
+You're watching a game stream archive, fully immersed — then the chat flashes "the final boss is [character]" or "this is a scripted loss, don't bother." Fresh Live Chat stops that.
 
-**SpoilerShield** is a Chrome extension that automatically detects and hides spoiler comments in YouTube game stream chats, so you can watch at your own pace without fear of spoilers.
+**Fresh Live Chat** is a Chrome extension that automatically detects and hides spoiler comments in YouTube game stream chats, so you can watch at your own pace without fear of spoilers.
 
 
 ### Key Features
@@ -33,7 +33,7 @@ You're watching a game stream archive, fully immersed — then the chat flashes 
 - Detects gameplay advice and instruction-style comments ("save your ammo," "this is a forced loss") that can also ruin the experience
 
 **Progress-Aware Filtering**
-- Register how far you've progressed in the game, and SpoilerShield won't hide comments about content you've already seen
+- Register how far you've progressed in the game, and Fresh Live Chat won't hide comments about content you've already seen
 - Automatically distinguishes future spoilers from already-unlocked story beats
 
 **Auto Game Detection from Video Title**
@@ -52,17 +52,17 @@ You're watching a game stream archive, fully immersed — then the chat flashes 
 
 1. Install from the Chrome Web Store (no account or login required)
 2. Open any YouTube game stream page
-3. Click the SpoilerShield icon in the top-right corner
+3. Click the Fresh Live Chat icon in the top-right corner
 4. Select your game title or genre — done
 
-Settings apply instantly. SpoilerShield works automatically from that point on.
+Settings apply instantly. Fresh Live Chat works automatically from that point on.
 
 
 ### Privacy
 
 - **All data stored locally**: Settings and cached results are stored only in your browser — never on external servers
 - **Chat content is never logged**: Comment text is sent to our AI service for judgment, but is never stored or recorded
-- **No API key needed**: SpoilerShield manages API access through a secure proxy — you don't need to provide any keys
+- **No API key needed**: Fresh Live Chat manages API access through a secure proxy — you don't need to provide any keys
 - **No account required**: Install and use immediately, no sign-up needed
 
 Full privacy policy: https://github.com/playnicelab/spoilershield/blob/main/docs/privacy-policy.md
@@ -75,5 +75,5 @@ Full privacy policy: https://github.com/playnicelab/spoilershield/blob/main/docs
 
 ### Source Code
 
-SpoilerShield is open source:
+Fresh Live Chat is open source:
 https://github.com/playnicelab/spoilershield

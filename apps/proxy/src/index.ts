@@ -1,5 +1,5 @@
 /**
- * SpoilerShield Proxy — Cloudflare Workers
+ * Fresh Live Chat Proxy — Cloudflare Workers
  *
  * 役割:
  * - Chrome Extension から受け取ったチャットメッセージを Anthropic API に転送してネタバレ判定
@@ -76,7 +76,7 @@ const RATE_LIMIT_WINDOW_SECONDS = 60;
 const CORS_HEADERS: HeadersInit = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, x-spoilershield-token',
+  'Access-Control-Allow-Headers': 'Content-Type, x-flc-token',
 };
 
 // ─── エントリポイント ─────────────────────────────────────────────────────────
@@ -101,9 +101,9 @@ export default {
 
 async function handleJudge(request: Request, env: Env): Promise<Response> {
   // 匿名トークン検証（存在チェックのみ、将来的に署名検証を追加）
-  const token = request.headers.get('x-spoilershield-token');
+  const token = request.headers.get('x-flc-token');
   if (!token) {
-    return jsonError('Missing x-spoilershield-token header', 401);
+    return jsonError('Missing x-flc-token header', 401);
   }
 
   // レート制限
@@ -228,7 +228,7 @@ JSON形式のみで回答（余分なテキストを含めないこと）:
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`[SpoilerShield] Anthropic API error ${response.status}: ${errorText}`);
+      console.error(`[FreshLiveChat] Anthropic API error ${response.status}: ${errorText}`);
       return { messageId: message.id, verdict: uncertainVerdict(filterMode), stage: 2 };
     }
 
@@ -238,7 +238,7 @@ JSON形式のみで回答（余分なテキストを含めないこと）:
     // ```json ... ``` のような余分な記法にも対応
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      console.error('[SpoilerShield] Failed to extract JSON from LLM response:', text);
+      console.error('[FreshLiveChat] Failed to extract JSON from LLM response:', text);
       return { messageId: message.id, verdict: uncertainVerdict(filterMode), stage: 2 };
     }
 
@@ -257,7 +257,7 @@ JSON形式のみで回答（余分なテキストを含めないこと）:
       stage: 2,
     };
   } catch (err) {
-    console.error('[SpoilerShield] judgeMessage error:', err);
+    console.error('[FreshLiveChat] judgeMessage error:', err);
     return { messageId: message.id, verdict: uncertainVerdict(filterMode), stage: 2 };
   }
 }

@@ -15,14 +15,14 @@ export default defineConfig({
     lib: {
       entry: resolve(__dirname, 'src/background/service-worker.ts'),
       formats: ['iife'],
-      name: 'SpoilerShieldBackground',
+      name: 'FreshLiveChatBackground',
       fileName: () => 'background.js',
     },
   },
   resolve: {
     alias: [
       {
-        find: '@spoilershield/shared',
+        find: '@fresh-live-chat/shared',
         replacement: resolve(__dirname, '../../packages/shared/src/index.ts'),
       },
     ],

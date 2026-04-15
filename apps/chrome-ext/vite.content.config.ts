@@ -16,18 +16,18 @@ export default defineConfig({
     lib: {
       entry: resolve(__dirname, 'src/content/index.ts'),
       formats: ['iife'],
-      name: 'SpoilerShieldContent',
+      name: 'FreshLiveChatContent',
       fileName: () => 'content.js',
     },
   },
   resolve: {
     alias: [
       {
-        find: '@spoilershield/shared',
+        find: '@fresh-live-chat/shared',
         replacement: resolve(__dirname, '../../packages/shared/src/index.ts'),
       },
       {
-        find: '@spoilershield/knowledge-base',
+        find: '@fresh-live-chat/knowledge-base',
         replacement: resolve(__dirname, '../../packages/knowledge-base/src/index.ts'),
       },
       {

@@ -1,5 +1,5 @@
 {
-  "name": "@spoilershield/chrome-ext",
+  "name": "@fresh-live-chat/chrome-ext",
   "version": "0.0.0",
   "private": true,
   "scripts": {
@@ -11,8 +11,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@spoilershield/knowledge-base": "workspace:*",
-    "@spoilershield/shared": "workspace:*",
+    "@fresh-live-chat/knowledge-base": "workspace:*",
+    "@fresh-live-chat/shared": "workspace:*",
     "react": "^18.3.0",
     "react-dom": "^18.3.0"
   },

@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "SpoilerShield",
+  "name": "Fresh Live Chat",
   "version": "0.1.0",
   "description": "ゲーム配信のチャットからネタバレをフィルタします",
   "icons": {
@@ -26,6 +26,6 @@
   ],
   "action": {
     "default_popup": "popup.html",
-    "default_title": "SpoilerShield"
+    "default_title": "Fresh Live Chat"
   }
 }

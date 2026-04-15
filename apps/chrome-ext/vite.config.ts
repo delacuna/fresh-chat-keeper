@@ -40,11 +40,11 @@ export default defineConfig({
   resolve: {
     alias: [
       {
-        find: '@spoilershield/shared',
+        find: '@fresh-live-chat/shared',
         replacement: resolve(__dirname, '../../packages/shared/src/index.ts'),
       },
       {
-        find: '@spoilershield/knowledge-base',
+        find: '@fresh-live-chat/knowledge-base',
         replacement: resolve(__dirname, '../../packages/knowledge-base/src/index.ts'),
       },
       {

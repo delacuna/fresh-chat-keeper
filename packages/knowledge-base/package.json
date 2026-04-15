@@ -1,5 +1,5 @@
 {
-  "name": "@spoilershield/knowledge-base",
+  "name": "@fresh-live-chat/knowledge-base",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -17,7 +17,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@spoilershield/shared": "workspace:*"
+    "@fresh-live-chat/shared": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.5.0",

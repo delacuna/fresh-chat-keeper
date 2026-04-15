@@ -12,8 +12,8 @@ import {
   type Stage2Usage,
   type CustomNGWord,
 } from '../shared/settings.js';
-import type { KBGame } from '@spoilershield/knowledge-base';
-import { getAllGenreTemplates } from '@spoilershield/knowledge-base';
+import type { KBGame } from '@fresh-live-chat/knowledge-base';
+import { getAllGenreTemplates } from '@fresh-live-chat/knowledge-base';
 import aceAttorney1 from '@kb-data/ace-attorney-1.json';
 
 const GAMES: KBGame[] = [aceAttorney1 as unknown as KBGame];
@@ -336,7 +336,7 @@ export default function App() {
         <div>
           <div className="flex items-center gap-2 font-semibold text-base leading-tight">
             <ShieldIcon size={22} />
-            SpoilerShield
+            Fresh Live Chat
           </div>
           <div className="text-xs text-indigo-200 mt-1">
             {filterCount}件のコメントをフィルタしました

@@ -6,8 +6,8 @@
     "types": ["chrome"],
     "resolveJsonModule": true,
     "paths": {
-      "@spoilershield/shared": ["../../packages/shared/src/index.ts"],
-      "@spoilershield/knowledge-base": ["../../packages/knowledge-base/src/index.ts"],
+      "@fresh-live-chat/shared": ["../../packages/shared/src/index.ts"],
+      "@fresh-live-chat/knowledge-base": ["../../packages/knowledge-base/src/index.ts"],
       "@kb-data/*": ["../../packages/knowledge-base/data/*"]
     }
   },

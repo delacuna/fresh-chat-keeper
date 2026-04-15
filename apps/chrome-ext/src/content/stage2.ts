@@ -61,7 +61,7 @@ export function verdictFromCache(entry: JudgeCacheEntry, filterMode: FilterMode)
 
 // ─── キャッシュ ────────────────────────────────────────────────────────────────
 
-export const JUDGE_CACHE_KEY = 'spoilershield_judge_cache';
+export const JUDGE_CACHE_KEY = 'flc_judge_cache';
 
 let _cache: Record<string, JudgeCacheEntry> = {};
 let _cacheLoaded = false;
@@ -143,13 +143,13 @@ export async function sendStage2Batch(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-spoilershield-token': token,
+        'x-flc-token': token,
       },
       body: JSON.stringify(body),
     });
 
     if (!res.ok) {
-      console.error(`[SpoilerShield] Stage 2エラー: HTTP ${res.status}`);
+      console.error(`[FreshLiveChat] Stage 2エラー: HTTP ${res.status}`);
       return false;
     }
 
@@ -179,7 +179,7 @@ export async function sendStage2Batch(
 
     return true;
   } catch (err) {
-    console.error(`[SpoilerShield] Stage 2エラー: ${err instanceof Error ? err.message : String(err)}`);
+    console.error(`[FreshLiveChat] Stage 2エラー: ${err instanceof Error ? err.message : String(err)}`);
     return false;
   }
 }

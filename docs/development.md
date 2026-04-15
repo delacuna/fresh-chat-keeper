@@ -14,9 +14,9 @@ https://spoilershield-proxy.playnicelab.workers.dev
 Chrome の DevTools コンソール（拡張のバックグラウンドページまたはコンテンツスクリプトのコンテキスト）で以下を実行します。
 
 ```javascript
-chrome.storage.local.get('spoilershield_settings', (r) => {
-  const s = r.spoilershield_settings ?? {};
-  chrome.storage.local.set({ spoilershield_settings: { ...s, proxyUrl: 'http://localhost:8787' } });
+chrome.storage.local.get('flc_settings', (r) => {
+  const s = r.flc_settings ?? {};
+  chrome.storage.local.set({ flc_settings: { ...s, proxyUrl: 'http://localhost:8787' } });
 });
 ```
 
@@ -25,19 +25,19 @@ chrome.storage.local.get('spoilershield_settings', (r) => {
 `proxyUrl` キーを削除すると `DEFAULT_SETTINGS` のデフォルト値（本番 URL）が使われます。
 
 ```javascript
-chrome.storage.local.get('spoilershield_settings', (r) => {
-  const s = r.spoilershield_settings ?? {};
+chrome.storage.local.get('flc_settings', (r) => {
+  const s = r.flc_settings ?? {};
   delete s.proxyUrl;
-  chrome.storage.local.set({ spoilershield_settings: s });
+  chrome.storage.local.set({ flc_settings: s });
 });
 ```
 
 または明示的に本番 URL を指定しても構いません。
 
 ```javascript
-chrome.storage.local.get('spoilershield_settings', (r) => {
-  const s = r.spoilershield_settings ?? {};
-  chrome.storage.local.set({ spoilershield_settings: { ...s, proxyUrl: 'https://spoilershield-proxy.playnicelab.workers.dev' } });
+chrome.storage.local.get('flc_settings', (r) => {
+  const s = r.flc_settings ?? {};
+  chrome.storage.local.set({ flc_settings: { ...s, proxyUrl: 'https://spoilershield-proxy.playnicelab.workers.dev' } });
 });
 ```
 
