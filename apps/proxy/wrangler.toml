@@ -1,4 +1,4 @@
-name = "spoilershield-proxy"
+name = "fresh-live-chat-proxy"
 main = "src/index.ts"
 compatibility_date = "2024-07-25"
 

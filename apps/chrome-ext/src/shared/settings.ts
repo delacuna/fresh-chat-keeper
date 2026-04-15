@@ -47,7 +47,7 @@ export const DEFAULT_SETTINGS: Settings = {
   progressByGame: {},
   filterMode: 'standard',
   displayMode: 'placeholder',
-  proxyUrl: 'https://spoilershield-proxy.playnicelab.workers.dev',
+  proxyUrl: 'https://fresh-live-chat-proxy.playnicelab.workers.dev',
   customNgWords: [],
   selectedGenreTemplates: [],
 };
