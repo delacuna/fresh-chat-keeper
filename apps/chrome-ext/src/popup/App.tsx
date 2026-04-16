@@ -230,23 +230,25 @@ function ProgressSettings({
   if (game.progress_type === 'chapter') {
     const chapters = game.chapters ?? [];
     return (
-      <select
-        className="w-full border border-gray-200 rounded px-2 py-1.5 text-sm bg-white"
-        value={progress.currentChapterId ?? ''}
-        onChange={(e) =>
-          onChange({ ...progress, progressModel: 'chapter', currentChapterId: e.target.value })
-        }
-      >
-        <option value="">-- 進行状況を選択 --</option>
-        {chapters.map((ch) => (
-          <option key={ch.id} value={ch.id}>
-            {ch.title}
-          </option>
-        ))}
-      </select>
-      <p className="text-xs text-gray-400 mt-1.5">
-        現在プレイ中（未クリア）のチャプターを選択してください。選択したチャプター以降のネタバレをブロックします。
-      </p>
+      <>
+        <select
+          className="w-full border border-gray-200 rounded px-2 py-1.5 text-sm bg-white"
+          value={progress.currentChapterId ?? ''}
+          onChange={(e) =>
+            onChange({ ...progress, progressModel: 'chapter', currentChapterId: e.target.value })
+          }
+        >
+          <option value="">-- 進行状況を選択 --</option>
+          {chapters.map((ch) => (
+            <option key={ch.id} value={ch.id}>
+              {ch.title}
+            </option>
+          ))}
+        </select>
+        <p className="text-xs text-gray-400 mt-1.5">
+          現在プレイ中（未クリア）のチャプターを選択してください。選択したチャプター以降のネタバレをブロックします。
+        </p>
+      </>
     );
   }
 
