@@ -81,4 +81,4 @@ Fresh Live Chat uses AI to understand context, but cannot guarantee every spoile
 ### Source Code
 
 Fresh Live Chat is open source:
-https://github.com/delacuna/fresh-live-chat.git
+https://github.com/delacuna/fresh-live-chat
