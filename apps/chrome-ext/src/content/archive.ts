@@ -48,6 +48,9 @@ const FILTERED_SELECTOR = '[data-flc-filtered]';
 /** chat-dom.ts と同じ属性名（DOM チェック用） */
 const ATTR_FILTERED = 'data-flc-filtered';
 
+/** Stage 2 判定待ちを示す属性 */
+const ATTR_PENDING = 'data-flc-pending';
+
 // ─── コンテキスト有効性チェック ───────────────────────────────────────────────
 
 /**
@@ -309,8 +312,18 @@ function processMessage(el: Element): void {
     el.removeAttribute('data-flc-original');
     el.removeAttribute('data-flc-matched-keyword');
     el.removeAttribute('data-flc-matched-context');
+    el.removeAttribute(ATTR_PENDING);
     (el as HTMLElement).style.cursor = '';
     (el as HTMLElement).style.opacity = '';
+  }
+
+  // Stage 2 判定待ち中の要素: テキストが一致していればキュー済みなのでスキップ
+  // テキストが変わっていれば YouTube が DOM を使い回したためグレーアウトを解除して再処理
+  if (el.getAttribute(ATTR_PENDING) === 'true') {
+    const currentText = el.textContent?.trim() ?? '';
+    const isStillQueued = stage2Queue.some((c) => c.el.deref() === el && c.text === currentText);
+    if (isStillQueued) return;
+    clearGrayout(el);
   }
 
   const text = el.textContent?.trim() ?? '';
@@ -355,6 +368,7 @@ function processMessage(el: Element): void {
           applyStage2Verdict({ text, el: new WeakRef(el), cacheKey, matchedKeyword: hintPhrase }, cached);
           return;
         }
+        grayoutElement(el);
         stage2Queue.push({ text, el: new WeakRef(el), cacheKey, matchedKeyword: hintPhrase });
         scheduleDrain();
         return;
@@ -370,6 +384,7 @@ function processMessage(el: Element): void {
           applyStage2Verdict({ text, el: new WeakRef(el), cacheKey, matchedKeyword: genreKeyword }, cached);
           return;
         }
+        grayoutElement(el);
         stage2Queue.push({ text, el: new WeakRef(el), cacheKey, matchedKeyword: genreKeyword });
         scheduleDrain();
       }
@@ -387,7 +402,8 @@ function processMessage(el: Element): void {
     return;
   }
 
-  // 未判定: キューに追加して後送（判定中は通常表示のまま）
+  // 未判定: キューに追加して後送（判定中はグレーアウト表示）
+  grayoutElement(el);
   stage2Queue.push({ text, el: new WeakRef(el), cacheKey, matchedKeyword: stage2keyword });
   scheduleDrain();
 }
@@ -395,6 +411,10 @@ function processMessage(el: Element): void {
 // ─── Stage 2 キュー管理 ────────────────────────────────────────────────────────
 
 function clearStage2Queue(): void {
+  for (const candidate of stage2Queue) {
+    const el = candidate.el.deref();
+    if (el) clearGrayout(el);
+  }
   stage2Queue = [];
 }
 
@@ -464,10 +484,12 @@ async function drainStage2Queue(): Promise<void> {
 function applyStage2Verdict(candidate: Stage2Candidate, entry: JudgeCacheEntry): void {
   if (!currentSettings) return;
 
+  const el = candidate.el.deref();
+  if (el) clearGrayout(el); // 判定完了: グレーアウトを解除
+
   const verdict = verdictFromCache(entry, currentSettings.filterMode);
   if (verdict === 'allow') return;
 
-  const el = candidate.el.deref();
   if (!el) return; // 要素が DOM から消えた
 
   if (!currentSettings.enabled) return;
@@ -548,4 +570,16 @@ function getVideoTitle(): string {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Stage 2 判定待ち中のコメントをグレーアウトする */
+function grayoutElement(el: Element): void {
+  (el as HTMLElement).style.opacity = '0.3';
+  el.setAttribute(ATTR_PENDING, 'true');
+}
+
+/** グレーアウトを解除して通常表示に戻す */
+function clearGrayout(el: Element): void {
+  (el as HTMLElement).style.opacity = '';
+  el.removeAttribute(ATTR_PENDING);
 }

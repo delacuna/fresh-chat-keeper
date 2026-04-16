@@ -11,7 +11,7 @@
   "permissions": ["storage"],
   "host_permissions": [
     "*://www.youtube.com/*",
-    "https://spoilershield-proxy.playnicelab.workers.dev/*"
+    "https://fresh-live-chat-proxy.playnicelab.workers.dev/*"
   ],
   "background": {
     "service_worker": "background.js"
