@@ -149,7 +149,7 @@ export async function sendStage2Batch(
     });
 
     if (!res.ok) {
-      console.error(`[FreshLiveChat] Stage 2エラー: HTTP ${res.status}`);
+      console.error(`[FreshChatKeeper] Stage 2エラー: HTTP ${res.status}`);
       return false;
     }
 
@@ -179,7 +179,7 @@ export async function sendStage2Batch(
 
     return true;
   } catch (err) {
-    console.error(`[FreshLiveChat] Stage 2エラー: ${err instanceof Error ? err.message : String(err)}`);
+    console.error(`[FreshChatKeeper] Stage 2エラー: ${err instanceof Error ? err.message : String(err)}`);
     return false;
   }
 }

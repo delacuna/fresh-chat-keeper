@@ -12,7 +12,7 @@
  */
 
 import { buildKeywordSet, buildDescriptionPhraseSet, matchesKeyword, matchesKeywordForStage2, matchesCustomNGWord, buildActiveGenreTemplates, matchesGenreTemplate, matchesGenreKeywordForStage2, matchesGameplayHintForStage2 } from './filter.js';
-import type { GenreTemplate } from '@fresh-live-chat/knowledge-base';
+import type { GenreTemplate } from '@fresh-chat-keeper/knowledge-base';
 import { filterMessageElement, restoreMessageElement, switchDisplayMode, ATTR_FALSE_POSITIVE } from './chat-dom.js';
 import {
   loadSettings,
@@ -25,7 +25,7 @@ import {
   saveMisreport,
   type Settings,
 } from '../shared/settings.js';
-import type { MisreportEntry } from '@fresh-live-chat/shared';
+import type { MisreportEntry } from '@fresh-chat-keeper/shared';
 import {
   initStage2Cache,
   getCachedVerdict,
@@ -77,7 +77,7 @@ function isContextValid(): boolean {
  * Observer を止め、Stage 2 キューをクリアしてこれ以上 Chrome API を呼ばないようにする。
  */
 function shutdownOnInvalidContext(): void {
-  console.log('[FreshLiveChat] 拡張コンテキストが無効になりました。監視を停止します。');
+  console.log('[FreshChatKeeper] 拡張コンテキストが無効になりました。監視を停止します。');
   itemsObserver?.disconnect();
   itemsObserver = null;
   clearStage2Queue();
@@ -131,7 +131,7 @@ let anonToken = '';
 // ─── エントリポイント ─────────────────────────────────────────────────────────
 
 export function startArchiveMode(mode: 'archive' | 'live' = 'archive'): void {
-  console.log(`[FreshLiveChat] ${mode === 'live' ? 'ライブモード' : 'アーカイブモード'}で起動しました`);
+  console.log(`[FreshChatKeeper] ${mode === 'live' ? 'ライブモード' : 'アーカイブモード'}で起動しました`);
 
   // 動画タイトルを取得（親フレームの document.title から "- YouTube" を除去）
   currentVideoTitle = getVideoTitle();
@@ -462,7 +462,7 @@ async function drainStage2Queue(): Promise<void> {
       // 月間上限チェック: 上限に達していたら Stage 2 を停止し Stage 1 のみで継続
       const usage = await getStage2Usage();
       if (usage.messageCount >= STAGE2_MONTHLY_LIMIT) {
-        console.log(`[FreshLiveChat] Stage 2月間上限(${STAGE2_MONTHLY_LIMIT}回)に達しました。Stage 1のみで動作を継続します。`);
+        console.log(`[FreshChatKeeper] Stage 2月間上限(${STAGE2_MONTHLY_LIMIT}回)に達しました。Stage 1のみで動作を継続します。`);
         stage2Queue = [];
         break;
       }

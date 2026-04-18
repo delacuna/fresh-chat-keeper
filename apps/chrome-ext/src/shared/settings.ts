@@ -3,7 +3,7 @@
  * ポップアップ / Content Script の両方から参照する
  */
 
-import type { MisreportEntry } from '@fresh-live-chat/shared';
+import type { MisreportEntry } from '@fresh-chat-keeper/shared';
 
 export type FilterMode = 'strict' | 'standard' | 'lenient';
 export type DisplayMode = 'placeholder' | 'hidden';
@@ -47,7 +47,7 @@ export const DEFAULT_SETTINGS: Settings = {
   progressByGame: {},
   filterMode: 'standard',
   displayMode: 'placeholder',
-  proxyUrl: 'https://fresh-live-chat-proxy.playnicelab.workers.dev',
+  proxyUrl: 'https://fresh-chat-keeper-proxy.playnicelab.workers.dev',
   customNgWords: [],
   selectedGenreTemplates: [],
 };
@@ -184,6 +184,6 @@ export async function getOrCreateAnonToken(): Promise<string> {
 
   const token = crypto.randomUUID();
   await chrome.storage.local.set({ [ANON_TOKEN_KEY]: token });
-  console.log('[FreshLiveChat] 匿名トークンを生成しました:', token.slice(0, 8) + '...');
+  console.log('[FreshChatKeeper] 匿名トークンを生成しました:', token.slice(0, 8) + '...');
   return token;
 }

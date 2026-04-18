@@ -1,5 +1,5 @@
 /**
- * Fresh Live Chat Proxy — Cloudflare Workers
+ * Fresh Chat Keeper Proxy — Cloudflare Workers
  *
  * 役割:
  * - Chrome Extension から受け取ったチャットメッセージを Anthropic API に転送してネタバレ判定
@@ -228,7 +228,7 @@ JSON形式のみで回答（余分なテキストを含めないこと）:
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`[FreshLiveChat] Anthropic API error ${response.status}: ${errorText}`);
+      console.error(`[FreshChatKeeper] Anthropic API error ${response.status}: ${errorText}`);
       return { messageId: message.id, verdict: uncertainVerdict(filterMode), stage: 2 };
     }
 
@@ -238,7 +238,7 @@ JSON形式のみで回答（余分なテキストを含めないこと）:
     // ```json ... ``` のような余分な記法にも対応
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      console.error('[FreshLiveChat] Failed to extract JSON from LLM response:', text);
+      console.error('[FreshChatKeeper] Failed to extract JSON from LLM response:', text);
       return { messageId: message.id, verdict: uncertainVerdict(filterMode), stage: 2 };
     }
 
@@ -257,7 +257,7 @@ JSON形式のみで回答（余分なテキストを含めないこと）:
       stage: 2,
     };
   } catch (err) {
-    console.error('[FreshLiveChat] judgeMessage error:', err);
+    console.error('[FreshChatKeeper] judgeMessage error:', err);
     return { messageId: message.id, verdict: uncertainVerdict(filterMode), stage: 2 };
   }
 }

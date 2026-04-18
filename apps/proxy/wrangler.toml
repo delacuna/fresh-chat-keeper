@@ -1,4 +1,4 @@
-name = "fresh-live-chat-proxy"
+name = "fresh-chat-keeper-proxy"
 main = "src/index.ts"
 compatibility_date = "2024-07-25"
 

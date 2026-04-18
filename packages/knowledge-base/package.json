@@ -1,5 +1,5 @@
 {
-  "name": "@fresh-live-chat/knowledge-base",
+  "name": "@fresh-chat-keeper/knowledge-base",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -17,7 +17,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@fresh-live-chat/shared": "workspace:*"
+    "@fresh-chat-keeper/shared": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.5.0",

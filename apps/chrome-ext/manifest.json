@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Fresh Live Chat",
+  "name": "Fresh Chat Keeper",
   "version": "0.1.0",
   "description": "ゲーム配信のチャットからネタバレをフィルタします",
   "icons": {
@@ -11,7 +11,7 @@
   "permissions": ["storage"],
   "host_permissions": [
     "*://www.youtube.com/*",
-    "https://fresh-live-chat-proxy.playnicelab.workers.dev/*"
+    "https://fresh-chat-keeper-proxy.playnicelab.workers.dev/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -26,6 +26,6 @@
   ],
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Fresh Live Chat"
+    "default_title": "Fresh Chat Keeper"
   }
 }

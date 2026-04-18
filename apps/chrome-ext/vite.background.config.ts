@@ -15,14 +15,14 @@ export default defineConfig({
     lib: {
       entry: resolve(__dirname, 'src/background/service-worker.ts'),
       formats: ['iife'],
-      name: 'FreshLiveChatBackground',
+      name: 'FreshChatKeeperBackground',
       fileName: () => 'background.js',
     },
   },
   resolve: {
     alias: [
       {
-        find: '@fresh-live-chat/shared',
+        find: '@fresh-chat-keeper/shared',
         replacement: resolve(__dirname, '../../packages/shared/src/index.ts'),
       },
     ],

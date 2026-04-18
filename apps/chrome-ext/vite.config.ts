@@ -40,11 +40,11 @@ export default defineConfig({
   resolve: {
     alias: [
       {
-        find: '@fresh-live-chat/shared',
+        find: '@fresh-chat-keeper/shared',
         replacement: resolve(__dirname, '../../packages/shared/src/index.ts'),
       },
       {
-        find: '@fresh-live-chat/knowledge-base',
+        find: '@fresh-chat-keeper/knowledge-base',
         replacement: resolve(__dirname, '../../packages/knowledge-base/src/index.ts'),
       },
       {

@@ -1,4 +1,4 @@
-# Fresh Live Chat
+# Fresh Chat Keeper
 
 **Spoiler filter for game stream chats on YouTube**
 
@@ -6,7 +6,7 @@
 
 ---
 
-Fresh Live Chat is a Chrome extension that automatically detects and hides spoilers, foreshadowing, and gameplay advice from YouTube game stream chats. Built for everyone who wants to make the most of their time watching their favorite streamers — without having that experience ruined.
+Fresh Chat Keeper is a Chrome extension that automatically detects and hides spoilers, foreshadowing, and gameplay advice from YouTube game stream chats. Built for everyone who wants to make the most of their time watching their favorite streamers — without having that experience ruined.
 
 Filtering is handled in two stages: instant keyword matching for obvious spoilers, followed by Claude AI context analysis for subtler cases. No account required — just install and play.
 
@@ -36,7 +36,7 @@ Filtering is handled in two stages: instant keyword matching for obvious spoiler
 - Detects gameplay advice and instruction-style comments that can also ruin the experience
 
 **Progress-Aware Filtering**
-- Register how far you've progressed in the game, and Fresh Live Chat won't hide comments about content you've already seen
+- Register how far you've progressed in the game, and Fresh Chat Keeper won't hide comments about content you've already seen
 - Automatically distinguishes spoilers ahead of your progress from content you've already seen
 
 **Auto Game Detection from Video Title**
@@ -81,9 +81,9 @@ pnpm build
 ## How to Use
 
 1. Open any YouTube game stream page
-2. Click the Fresh Live Chat icon in the top-right corner of your browser
+2. Click the Fresh Chat Keeper icon in the top-right corner of your browser
 3. Select your game title or genre
-4. Settings apply instantly — Fresh Live Chat works automatically from that point on
+4. Settings apply instantly — Fresh Chat Keeper works automatically from that point on
 
 ---
 
@@ -91,7 +91,7 @@ pnpm build
 
 - **All data stored locally**: Settings and cached results are stored only in your browser
 - **Chat content is never logged**: Comment text is sent to the AI service for judgment, but is never stored or recorded
-- **No API key needed**: Fresh Live Chat manages API access through a secure proxy
+- **No API key needed**: Fresh Chat Keeper manages API access through a secure proxy
 - **No account required**: Install and use immediately
 
 [Full Privacy Policy](https://github.com/delacuna/fresh-live-chat/blob/main/docs/privacy-policy.md)
