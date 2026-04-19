@@ -20,10 +20,10 @@ importers:
 
   apps/chrome-ext:
     dependencies:
-      '@fresh-live-chat/knowledge-base':
+      '@fresh-chat-keeper/knowledge-base':
         specifier: workspace:*
         version: link:../../packages/knowledge-base
-      '@fresh-live-chat/shared':
+      '@fresh-chat-keeper/shared':
         specifier: workspace:*
         version: link:../../packages/shared
       react:
@@ -75,7 +75,7 @@ importers:
 
   packages/knowledge-base:
     dependencies:
-      '@fresh-live-chat/shared':
+      '@fresh-chat-keeper/shared':
         specifier: workspace:*
         version: link:../shared
     devDependencies:

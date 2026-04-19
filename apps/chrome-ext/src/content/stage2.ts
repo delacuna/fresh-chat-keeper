@@ -143,7 +143,7 @@ export async function sendStage2Batch(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-flc-token': token,
+        'x-fck-token': token,
       },
       body: JSON.stringify(body),
     });

@@ -175,7 +175,7 @@ export async function saveSettings(settings: Settings): Promise<void> {
 
 /**
  * 匿名トークンを取得する。まだ存在しない場合は UUID を生成して保存する。
- * リクエストヘッダー x-flc-token に使用する。
+ * リクエストヘッダー x-fck-token に使用する。
  */
 export async function getOrCreateAnonToken(): Promise<string> {
   const result = await chrome.storage.local.get(ANON_TOKEN_KEY);

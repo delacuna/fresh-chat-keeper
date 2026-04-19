@@ -76,7 +76,7 @@ const RATE_LIMIT_WINDOW_SECONDS = 60;
 const CORS_HEADERS: HeadersInit = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, x-flc-token',
+  'Access-Control-Allow-Headers': 'Content-Type, x-fck-token',
 };
 
 // ─── エントリポイント ─────────────────────────────────────────────────────────
@@ -101,9 +101,9 @@ export default {
 
 async function handleJudge(request: Request, env: Env): Promise<Response> {
   // 匿名トークン検証（存在チェックのみ、将来的に署名検証を追加）
-  const token = request.headers.get('x-flc-token');
+  const token = request.headers.get('x-fck-token');
   if (!token) {
-    return jsonError('Missing x-flc-token header', 401);
+    return jsonError('Missing x-fck-token header', 401);
   }
 
   // レート制限
