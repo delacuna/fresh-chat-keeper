@@ -7,11 +7,11 @@
 
 import type { DisplayMode } from '../shared/settings.js';
 
-const ATTR_ORIGINAL = 'data-flc-original';
-const ATTR_FILTERED = 'data-flc-filtered';
-const ATTR_HIDDEN_ROW = 'data-flc-hidden-row';
+const ATTR_ORIGINAL = 'data-fck-original';
+const ATTR_FILTERED = 'data-fck-filtered';
+const ATTR_HIDDEN_ROW = 'data-fck-hidden-row';
 /** 誤判定報告済みを示す属性。processMessage がこの要素を再フィルタしないために使用する。 */
-export const ATTR_FALSE_POSITIVE = 'data-flc-false-positive';
+export const ATTR_FALSE_POSITIVE = 'data-fck-false-positive';
 
 const PLACEHOLDER = '⚠ ネタバレの可能性があるためフィルタされました（クリックで表示）';
 
@@ -61,10 +61,10 @@ export function filterMessageElement(
 
   el.setAttribute(ATTR_FILTERED, 'true');
   if (matchedKeyword) {
-    el.setAttribute('data-flc-matched-keyword', matchedKeyword);
+    el.setAttribute('data-fck-matched-keyword', matchedKeyword);
   }
   if (matchedContext) {
-    el.setAttribute('data-flc-matched-context', matchedContext);
+    el.setAttribute('data-fck-matched-context', matchedContext);
   }
 
   if (displayMode === 'hidden') {
@@ -258,7 +258,7 @@ function createMisreportButton(
   onReport: () => void,
 ): HTMLButtonElement {
   const btn = document.createElement('button');
-  btn.setAttribute('data-flc-misreport', 'true');
+  btn.setAttribute('data-fck-misreport', 'true');
   btn.style.cssText = MISREPORT_BTN_STYLE;
 
   if (alreadyReported) {

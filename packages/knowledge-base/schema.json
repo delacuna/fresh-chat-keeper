@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://spoilershield.example/knowledge-base-schema.json",
-  "title": "SpoilerShield Knowledge Base",
+  "$id": "https://fresh-chat-keeper.example/knowledge-base-schema.json",
+  "title": "Fresh Chat Keeper Knowledge Base",
   "description": "ゲームごとのネタバレ知識ベースのスキーマ",
   "type": "object",
   "required": ["id", "title", "title_aliases", "progress_type", "chapters", "spoiler_entities", "global_spoilers"],

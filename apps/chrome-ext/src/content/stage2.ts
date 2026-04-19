@@ -61,7 +61,7 @@ export function verdictFromCache(entry: JudgeCacheEntry, filterMode: FilterMode)
 
 // ─── キャッシュ ────────────────────────────────────────────────────────────────
 
-export const JUDGE_CACHE_KEY = 'flc_judge_cache';
+export const JUDGE_CACHE_KEY = 'fck_judge_cache';
 
 let _cache: Record<string, JudgeCacheEntry> = {};
 let _cacheLoaded = false;

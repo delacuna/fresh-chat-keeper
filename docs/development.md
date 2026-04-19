@@ -5,7 +5,7 @@
 デフォルトの `proxyUrl` は本番環境（Cloudflare Workers）を向いています。
 
 ```
-https://spoilershield-proxy.playnicelab.workers.dev
+https://fresh-chat-keeper-proxy.playnicelab.workers.dev
 ```
 
 ### ローカル開発時に localhost に切り替える
@@ -14,9 +14,9 @@ https://spoilershield-proxy.playnicelab.workers.dev
 Chrome の DevTools コンソール（拡張のバックグラウンドページまたはコンテンツスクリプトのコンテキスト）で以下を実行します。
 
 ```javascript
-chrome.storage.local.get('flc_settings', (r) => {
-  const s = r.flc_settings ?? {};
-  chrome.storage.local.set({ flc_settings: { ...s, proxyUrl: 'http://localhost:8787' } });
+chrome.storage.local.get('fck_settings', (r) => {
+  const s = r.fck_settings ?? {};
+  chrome.storage.local.set({ fck_settings: { ...s, proxyUrl: 'http://localhost:8787' } });
 });
 ```
 
@@ -25,19 +25,19 @@ chrome.storage.local.get('flc_settings', (r) => {
 `proxyUrl` キーを削除すると `DEFAULT_SETTINGS` のデフォルト値（本番 URL）が使われます。
 
 ```javascript
-chrome.storage.local.get('flc_settings', (r) => {
-  const s = r.flc_settings ?? {};
+chrome.storage.local.get('fck_settings', (r) => {
+  const s = r.fck_settings ?? {};
   delete s.proxyUrl;
-  chrome.storage.local.set({ flc_settings: s });
+  chrome.storage.local.set({ fck_settings: s });
 });
 ```
 
 または明示的に本番 URL を指定しても構いません。
 
 ```javascript
-chrome.storage.local.get('flc_settings', (r) => {
-  const s = r.flc_settings ?? {};
-  chrome.storage.local.set({ flc_settings: { ...s, proxyUrl: 'https://spoilershield-proxy.playnicelab.workers.dev' } });
+chrome.storage.local.get('fck_settings', (r) => {
+  const s = r.fck_settings ?? {};
+  chrome.storage.local.set({ fck_settings: { ...s, proxyUrl: 'https://fresh-chat-keeper-proxy.playnicelab.workers.dev' } });
 });
 ```
 

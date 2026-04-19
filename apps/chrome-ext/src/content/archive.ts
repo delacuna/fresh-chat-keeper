@@ -43,16 +43,16 @@ const ITEMS_SELECTOR = '#items';
 const MSG_TEXT_SELECTOR = '#message';
 
 /** フィルタ済みメッセージを検索するセレクタ（revealed も含む） */
-const FILTERED_SELECTOR = '[data-flc-filtered]';
+const FILTERED_SELECTOR = '[data-fck-filtered]';
 
 /** chat-dom.ts と同じ属性名（DOM チェック用） */
-const ATTR_FILTERED = 'data-flc-filtered';
+const ATTR_FILTERED = 'data-fck-filtered';
 
 /** Stage 2 判定待ちを示す属性 */
-const ATTR_PENDING = 'data-flc-pending';
+const ATTR_PENDING = 'data-fck-pending';
 
 /** Stage 2 判定待ち中に非表示にした行要素を示す属性 */
-const ATTR_PENDING_ROW = 'data-flc-pending-row';
+const ATTR_PENDING_ROW = 'data-fck-pending-row';
 
 /** Stage 2 タイムアウト時間（ms）。これを超えたら強制的に表示に戻す */
 const STAGE2_PENDING_TIMEOUT_MS = 5000;
@@ -171,9 +171,9 @@ export function startArchiveMode(mode: 'archive' | 'live' = 'archive'): void {
       if (onlyDisplayModeChanged) {
         // displayMode のみ変更: 復元→再フィルタせず、表示方式だけ直接切り替える（フラッシュ防止）
         isUpdatingDisplayMode = true;
-        itemsContainerRef.querySelectorAll('[data-flc-filtered="true"]').forEach((el) => {
+        itemsContainerRef.querySelectorAll('[data-fck-filtered="true"]').forEach((el) => {
           switchDisplayMode(el, next.displayMode, () => {
-            const text = el.getAttribute('data-flc-original') ?? el.textContent?.trim() ?? '';
+            const text = el.getAttribute('data-fck-original') ?? el.textContent?.trim() ?? '';
             if (text) revealedTexts.add(text);
           });
         });
@@ -311,16 +311,16 @@ function processMessage(el: Element): void {
   // その場合は属性を一掃して最初から処理する。
   // stale 判定: ATTR_ORIGINAL（元テキスト）が revealedTexts に含まれない revealed 状態 = 使い回し
   if (el.hasAttribute(ATTR_FILTERED)) {
-    const storedOriginal = el.getAttribute('data-flc-original');
+    const storedOriginal = el.getAttribute('data-fck-original');
     const isStale =
       el.getAttribute(ATTR_FILTERED) === 'revealed' &&
       !revealedTexts.has(storedOriginal ?? '');
     const isTrueFiltered = el.getAttribute(ATTR_FILTERED) === 'true';
     if (!isStale && isTrueFiltered) return;
     el.removeAttribute(ATTR_FILTERED);
-    el.removeAttribute('data-flc-original');
-    el.removeAttribute('data-flc-matched-keyword');
-    el.removeAttribute('data-flc-matched-context');
+    el.removeAttribute('data-fck-original');
+    el.removeAttribute('data-fck-matched-keyword');
+    el.removeAttribute('data-fck-matched-context');
     (el as HTMLElement).style.cursor = '';
     if (el.hasAttribute(ATTR_PENDING)) showPendingElement(el);
   }

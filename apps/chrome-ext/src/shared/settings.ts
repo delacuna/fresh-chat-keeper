@@ -53,28 +53,28 @@ export const DEFAULT_SETTINGS: Settings = {
 };
 
 /** メイン設定のストレージキー。書き込みはポップアップのみ行う。 */
-export const STORAGE_KEY = 'flc_settings';
+export const STORAGE_KEY = 'fck_settings';
 
 /**
  * 匿名トークンのストレージキー。
  * 初回起動時に UUID を生成して保存し、以降は同じ値を使い回す。
  */
-export const ANON_TOKEN_KEY = 'flc_anon_token';
+export const ANON_TOKEN_KEY = 'fck_anon_token';
 
 /**
  * フィルタカウントの専用ストレージキー。
  * Content Script のみ書き込む。STORAGE_KEY との競合を防ぐために分離している。
  */
-export const FILTER_COUNT_KEY = 'flc_filter_count';
+export const FILTER_COUNT_KEY = 'fck_filter_count';
 
 /** Stage 2 月間利用量のストレージキー */
-export const STAGE2_USAGE_KEY = 'flc_stage2_usage';
+export const STAGE2_USAGE_KEY = 'fck_stage2_usage';
 
 /**
  * 誤判定報告のストレージキー。最大 MISREPORT_MAX_COUNT 件を保存し、古いものから上書きする。
  * 将来のサーバー送信機能追加を想定してローカルに蓄積しておく。
  */
-export const MISREPORT_KEY = 'flc_misreports';
+export const MISREPORT_KEY = 'fck_misreports';
 const MISREPORT_MAX_COUNT = 100;
 
 /** 誤判定報告を chrome.storage に保存する。100件を超えた場合は最古のものを削除する。 */
