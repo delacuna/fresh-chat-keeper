@@ -16,7 +16,7 @@ Filtering is handled in two stages: instant keyword matching for obvious spoiler
 
 | Popup UI | Spoiler blocked | Revealed on click |
 |----------|----------------|-------------------|
-| ![Popup UI](docs/screenshots/fresh-live-chat-popup.png) | ![Blocked](docs/screenshots/fresh-live-chat-blocked.png) | ![Revealed](docs/screenshots/fresh-live-chat-revealed.png) |
+| ![Popup UI](docs/screenshots/fresh-chat-keeper-popup.png) | ![Blocked](docs/screenshots/fresh-chat-keeper-blocked.png) | ![Revealed](docs/screenshots/fresh-chat-keeper-revealed.png) |
 
 ---
 
