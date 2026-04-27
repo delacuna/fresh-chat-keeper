@@ -13,3 +13,6 @@ PROJECT_PLAN.md
 CLAUDE.md
 TROUBLESHOOTING.md
 dev-docs/
+
+# Claude Code ローカル領域（worktree, ローカル設定）
+.claude/

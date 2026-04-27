@@ -1,8 +1,11 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "rootDir": "./src",
-    "outDir": "./dist"
+    "outDir": "./dist",
+    "resolveJsonModule": true,
+    "paths": {
+      "@kb-data/*": ["../knowledge-base/data/*"]
+    }
   },
   "include": ["src", "tests"]
 }
