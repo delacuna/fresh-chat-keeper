@@ -22,7 +22,6 @@ import { createChromeTransport } from './chrome-transport.js';
 import {
   parseSpoilerCategory,
   saveJudgeCacheEntry,
-  verdictFromCache,
   type JudgeCacheEntry,
   type OnStage2Result,
   type Stage2Candidate,
@@ -71,9 +70,8 @@ export async function sendStage2Batch(
       ...(result.confidence !== undefined ? { confidence: result.confidence } : {}),
     };
 
-    // verdictFromCache は archive.ts 側でも適用されるが、ここではキャッシュへの
-    // 保存だけが目的（verdict 計算はコールバック先に委譲）
-    void verdictFromCache; // tree-shaking 用の参照（未使用警告対策）
+    // verdict 計算は archive.ts 側で applyStage2Verdict が verdictFromCache を呼ぶ。
+    // ここではキャッシュ保存と onResult 通知のみ行う。
     await saveJudgeCacheEntry(candidate.cacheKey, entry);
     onResult(candidate, entry);
   }
