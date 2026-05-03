@@ -11,11 +11,20 @@
  * - Stage 2: プロキシ経由 LLM 判定（非同期、判定中は通常表示を維持）
  */
 
-import { buildKeywordSet, buildDescriptionPhraseSet, matchesKeyword, matchesKeywordForStage2, matchesCustomNGWord, buildActiveGenreTemplates, matchesGenreTemplate, matchesGenreKeywordForStage2, matchesGameplayHintForStage2 } from './filter.js';
+import {
+  buildKeywordSet,
+  buildDescriptionPhraseSet,
+  matchesKeyword,
+  matchesKeywordForStage2,
+  matchesCustomNGWord,
+  buildActiveGenreTemplates,
+  matchesGenreTemplate,
+  matchesGenreKeywordForStage2,
+  matchesGameplayHintForStage2,
+} from '@fresh-chat-keeper/judgment-engine/stage1';
 import type { GenreTemplate } from '@fresh-chat-keeper/knowledge-base';
 import { filterMessageElement, restoreMessageElement, switchDisplayMode, ATTR_FALSE_POSITIVE } from './chat-dom.js';
 import {
-  loadSettings,
   STORAGE_KEY,
   FILTER_COUNT_KEY,
   getOrCreateAnonToken,
@@ -25,16 +34,17 @@ import {
   saveMisreport,
   type Settings,
 } from '../shared/settings.js';
+import { loadSettings } from '../shared/settings-loader.js';
 import type { MisreportEntry } from '@fresh-chat-keeper/shared';
 import {
   initStage2Cache,
   getCachedVerdict,
   buildStage2CacheKey,
-  sendStage2Batch,
   verdictFromCache,
   type Stage2Candidate,
   type JudgeCacheEntry,
-} from './stage2.js';
+} from './chrome-cache.js';
+import { sendStage2Batch } from './filter-orchestrator.js';
 
 /** YouTube チャットリプレイのメッセージコンテナ */
 const ITEMS_SELECTOR = '#items';
@@ -140,55 +150,67 @@ export function startArchiveMode(mode: 'archive' | 'live' = 'archive'): void {
   chrome.storage.local.set({ [FILTER_COUNT_KEY]: 0 });
 
   // Stage 2 キャッシュの読み込みとトークン取得を並行して初期化
-  Promise.all([initStage2Cache(), getOrCreateAnonToken()]).then(([, token]) => {
-    anonToken = token;
-  });
-
-  loadSettings().then((settings) => {
-    currentSettings = settings;
-    currentKeywords = buildKeywordsFromSettings(settings);
-
-    chrome.storage.onChanged.addListener((changes, area) => {
-      if (area !== 'local' || !changes[STORAGE_KEY]) return;
-      const prev = changes[STORAGE_KEY].oldValue as Settings | undefined;
-      const next = changes[STORAGE_KEY].newValue as Settings;
-
-      const displayModeChanged = prev?.displayMode !== next.displayMode;
-      const onlyDisplayModeChanged =
-        displayModeChanged &&
-        prev?.enabled === next.enabled &&
-        prev?.gameId === next.gameId &&
-        prev?.filterMode === next.filterMode &&
-        JSON.stringify(prev?.progressByGame) === JSON.stringify(next.progressByGame) &&
-        JSON.stringify(prev?.customNgWords) === JSON.stringify(next.customNgWords) &&
-        JSON.stringify(prev?.selectedGenreTemplates) === JSON.stringify(next.selectedGenreTemplates);
-
-      currentSettings = next;
-      currentKeywords = buildKeywordsFromSettings(next);
-
-      if (!itemsContainerRef) return;
-
-      if (onlyDisplayModeChanged) {
-        // displayMode のみ変更: 復元→再フィルタせず、表示方式だけ直接切り替える（フラッシュ防止）
-        isUpdatingDisplayMode = true;
-        itemsContainerRef.querySelectorAll('[data-fck-filtered="true"]').forEach((el) => {
-          switchDisplayMode(el, next.displayMode, () => {
-            const text = el.getAttribute('data-fck-original') ?? el.textContent?.trim() ?? '';
-            if (text) revealedTexts.add(text);
-          });
-        });
-        isUpdatingDisplayMode = false;
-      } else {
-        // 設定変更: Stage 2 キューをクリアして再処理
-        clearStage2Queue();
-        reprocessAll(itemsContainerRef);
-      }
+  Promise.all([initStage2Cache(), getOrCreateAnonToken()])
+    .then(([, token]) => {
+      anonToken = token;
+    })
+    .catch((err) => {
+      // chrome.storage 失敗等。anonToken が空のままだと Stage 2 が動かないが、
+      // Stage 1 は引き続き機能する。サイレント失敗を避けるため必ずログ出力する。
+      console.error('[FreshChatKeeper] 起動時初期化エラー（Stage 2 キャッシュ/トークン）:', err);
     });
 
-    if (settings.enabled) {
-      waitForItemsContainer();
-    }
-  });
+  loadSettings()
+    .then((settings) => {
+      currentSettings = settings;
+      currentKeywords = buildKeywordsFromSettings(settings);
+
+      chrome.storage.onChanged.addListener((changes, area) => {
+        if (area !== 'local' || !changes[STORAGE_KEY]) return;
+        const prev = changes[STORAGE_KEY].oldValue as Settings | undefined;
+        const next = changes[STORAGE_KEY].newValue as Settings;
+
+        const displayModeChanged = prev?.displayMode !== next.displayMode;
+        const onlyDisplayModeChanged =
+          displayModeChanged &&
+          prev?.enabled === next.enabled &&
+          prev?.gameId === next.gameId &&
+          prev?.filterMode === next.filterMode &&
+          JSON.stringify(prev?.progressByGame) === JSON.stringify(next.progressByGame) &&
+          JSON.stringify(prev?.customNgWords) === JSON.stringify(next.customNgWords) &&
+          JSON.stringify(prev?.selectedGenreTemplates) === JSON.stringify(next.selectedGenreTemplates);
+
+        currentSettings = next;
+        currentKeywords = buildKeywordsFromSettings(next);
+
+        if (!itemsContainerRef) return;
+
+        if (onlyDisplayModeChanged) {
+          // displayMode のみ変更: 復元→再フィルタせず、表示方式だけ直接切り替える（フラッシュ防止）
+          isUpdatingDisplayMode = true;
+          itemsContainerRef.querySelectorAll('[data-fck-filtered="true"]').forEach((el) => {
+            switchDisplayMode(el, next.displayMode, () => {
+              const text = el.getAttribute('data-fck-original') ?? el.textContent?.trim() ?? '';
+              if (text) revealedTexts.add(text);
+            });
+          });
+          isUpdatingDisplayMode = false;
+        } else {
+          // 設定変更: Stage 2 キューをクリアして再処理
+          clearStage2Queue();
+          reprocessAll(itemsContainerRef);
+        }
+      });
+
+      if (settings.enabled) {
+        waitForItemsContainer();
+      }
+    })
+    .catch((err) => {
+      // chrome.storage 失敗等で設定ロードに失敗。フィルタが全く起動せず
+      // 全コメント素通しになるため必ずログ出力する。
+      console.error('[FreshChatKeeper] 設定ロード失敗（フィルタ未起動）:', err);
+    });
 }
 
 // ─── 設定・キーワード構築 ─────────────────────────────────────────────────────
@@ -276,10 +298,24 @@ function observeItems(itemsContainer: Element): void {
 /**
  * 既存の全フィルタを解除して再フィルタする。
  * Observer を一時停止して干渉を防ぐ。
+ *
+ * @param clearReveals フィルタ基準が変わった場合は true（デフォルト）。
+ *   ユーザーがクリックして展開済みのテキスト集合 ({@link revealedTexts}) を
+ *   クリアし、新基準での再判定を確実に走らせる。
+ *   displayMode 等「フィルタ基準が変わらない」変更の場合は false を渡して
+ *   展開状態を維持する（ただし現状そのケースでは reprocessAll は呼ばれない）。
  */
-function reprocessAll(itemsContainer: Element): void {
+function reprocessAll(itemsContainer: Element, clearReveals = true): void {
   isUpdatingDisplayMode = true;
   pauseObserver();
+
+  // フィルタ基準が変わった場合、展開済みテキストの集合は古い基準に対する
+  // ユーザーの意思表明であり、新基準では無効化して再判定する必要がある。
+  // クリアしないと processMessage の `if (revealedTexts.has(text)) return;`
+  // で早期 return してしまい、再フィルタが走らない。
+  if (clearReveals) {
+    revealedTexts.clear();
+  }
 
   itemsContainer.querySelectorAll(FILTERED_SELECTOR).forEach((el) => {
     restoreMessageElement(el);
